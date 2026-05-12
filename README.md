@@ -5,7 +5,7 @@
 The datasets used are the [Brazilian E-Commerce Public Dataset by Olist](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce) and the [Marketing Funnel by Olist](https://www.kaggle.com/datasets/olistbr/marketing-funnel-olist).
 
 > [!NOTE]
-> This project is under active development. Current focus: **Gold Layer Modeling**.
+> This project has successfully completed the Data Engineering phase (Medallion Architecture). Current focus: **Reporting & Dashboarding in Power BI**.
 
 ---
 
@@ -13,7 +13,7 @@ The datasets used are the [Brazilian E-Commerce Public Dataset by Olist](https:/
 
 1.  **Bronze (Raw)**: Data is ingested directly from source systems as-is. Minimal processing (only adding audit columns) to ensure full data lineage.
 2.  **Silver (Cleaned/Standardized)**: Data is cleaned, deduplicated, and typed. Brazilian locale support is maintained via `NVARCHAR`. Relationships and context-aware sentinels (e.g., in-transit dates) are established.
-3.  **Gold (Analytical)**: *[Planned]* Star-schema dimensional modeling (Kimball style) optimized for Power BI and analytical reporting (Galaxy Schema).
+3.  **Gold (Analytical)**: Star-schema dimensional modeling (Kimball style) optimized for Power BI and analytical reporting (Galaxy Schema). Enforces referential integrity with facts and dimensions.
 
 ---
 
@@ -51,9 +51,26 @@ The Silver layer transforms the raw bronze data into refined, production-ready t
 *   **Categorical Mapping**: Snake_case values (e.g., `credit_card`) mapped to human-readable labels (`Credit Card`).
 *   **Orchestration**: A master stored procedure (`silver.silver_master`) triggers 9 load procedures in the correct dependency sequence with integrated `TRY/CATCH` error handling.
 *   **Quality Assurance**: A dedicated `silver_quality_checks.sql` script validates row counts, checks for unexpected NULLs, verifies data type casting, and ensures cross-table referential integrity within the Silver schema.
-    *   **Audit Results**: The latest audit confirmed **0 duplicates** across all tables (handled via `ROW_NUMBER()`), **0 unexpected NULLs**, and validated cross-table references. A known source issue was identified: **462 orphan rows** in `closed_deals` pointing to missing `sellers`, which will be handled in the Gold layer.
 
 *(Note: The `geolocation` table is intentionally excluded from the Silver layer as it will not be part of the final Galaxy Schema.)*
+
+---
+
+## 🌟 Gold Layer: Dimensional Modeling
+
+The Gold layer represents the final presentation layer, structured as a Kimball Galaxy Schema. It connects e-commerce operations with marketing acquisition metrics, forming a comprehensive analytical model.
+
+### Key Features
+*   **Dimensions (SCD Type 1)**: `dim_customer`, `dim_product`, `dim_seller`, and `dim_marketing_channel` load via `MERGE` statements.
+*   **Conformed Date Spine**: `dim_date` handles a robust range (2016-2020) ensuring unified time-series analysis across all facts.
+*   **Fact Tables**: Five granular fact tables loaded idempotently via `TRUNCATE + INSERT`:
+    *   `fact_order_items` (Order Item grain)
+    *   `fact_payments` (Payment method grain)
+    *   `fact_reviews` (Review grain)
+    *   `fact_order_life_cycle` (Accumulating Snapshot for delivery tracking)
+    *   `fact_marketing_funnel` (MQL Conversion grain)
+*   **Outrigger Strategy**: `review_comments` is implemented as an outrigger to `fact_reviews` to efficiently store long-form text without bloating the primary fact table.
+*   **Orchestration**: `gold.gold_master` handles the end-to-end load sequence, processing dimensions before facts and managing complex Foreign Key constraint validations during full-reloads.
 
 ---
 
@@ -82,10 +99,17 @@ python ingestion/run_all_ingestion.py
 ```
 
 **2. Silver Transformation:**
-Open SQL Server Management Studio (SSMS) and execute the master stored procedure:
+Open SQL Server Management Studio (SSMS) or use `sqlcmd` to execute the master stored procedure:
 ```sql
 USE [BI_AI];
 EXEC silver.silver_master;
+```
+
+**3. Gold Dimensional Load:**
+Load the Galaxy Schema and fact tables:
+```sql
+USE [BI_AI];
+EXEC gold.gold_master;
 ```
 
 ---
@@ -94,23 +118,18 @@ EXEC silver.silver_master;
 *   **Language**: Python (pandas, SQLAlchemy, pyodbc), T-SQL
 *   **Database**: SQL Server 2022 (Destination), PostgreSQL (Source)
 *   **Cloud Tools**: Google Drive API, Google Apps Script
-*   **Orchestration**: Custom Python Master Runner, SQL Stored Procedures
+*   **Architecture**: Kimball Dimensional Modeling, Medallion Architecture
 
 ---
 
 ## 📁 Repository Structure
 ```
 ├── ingestion/                 # Python scripts for Bronze layer extraction
-│   ├── run_all_ingestion.py   # Master ingestion runner
-│   └── ...                    # Individual source extractors
 ├── scripts/
-│   ├── silver/                # Silver layer SQL stored procedures
-│   │   ├── load_*.sql         # Individual table transformations
-│   │   ├── silver_master.sql  # Silver orchestration SP
-│   │   ├── silver_quality_checks.sql # Silver data validation script
-│   │   └── README.md          # Detailed Silver layer documentation
-│   └── bronze_quality_checks.sql # Bronze data profiling script
-├── metadata/                  # Project metadata and screenshots
+│   ├── bronze/                # Bronze schema DDL and quality checks
+│   ├── silver/                # Silver layer T-SQL stored procedures
+│   └── gold/                  # Gold layer Kimball modeling, DDL, and ETL SPs
+├── metadata/                  # Project metadata, DBML schemas, and diagrams
 ├── requirements.txt           # Python dependencies
 └── README.md                  # This file
 ```
@@ -122,6 +141,6 @@ EXEC silver.silver_master;
 - [x] **Bronze Layer**: Data Quality Profiling
 - [x] **Silver Layer**: Data Cleaning, Type Casting & Deduplication (T-SQL SPs)
 - [x] **Silver Layer**: Data Quality Checks & Referential Integrity Audits
-- [ ] **Gold Layer**: Dimensional Modeling (Star / Galaxy Schema)
-- [ ] **Gold Layer**: Slowly Changing Dimensions (SCD Type 1/2) & Columnstore Indexes
+- [x] **Gold Layer**: Dimensional Modeling (Star / Galaxy Schema)
+- [x] **Gold Layer**: Medallion Master Orchestration & FK Management
 - [ ] **Reporting Layer**: Power BI Dashboards
