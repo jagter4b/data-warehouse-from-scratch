@@ -51,6 +51,7 @@ The Silver layer transforms the raw bronze data into refined, production-ready t
 *   **Categorical Mapping**: Snake_case values (e.g., `credit_card`) mapped to human-readable labels (`Credit Card`).
 *   **Orchestration**: A master stored procedure (`silver.silver_master`) triggers 9 load procedures in the correct dependency sequence with integrated `TRY/CATCH` error handling.
 *   **Quality Assurance**: A dedicated `silver_quality_checks.sql` script validates row counts, checks for unexpected NULLs, verifies data type casting, and ensures cross-table referential integrity within the Silver schema.
+    *   **Audit Results**: The latest audit confirmed **0 duplicates** across all tables (handled via `ROW_NUMBER()`), **0 unexpected NULLs**, and validated cross-table references. A known source issue was identified: **462 orphan rows** in `closed_deals` pointing to missing `sellers`, which will be handled in the Gold layer.
 
 *(Note: The `geolocation` table is intentionally excluded from the Silver layer as it will not be part of the final Galaxy Schema.)*
 

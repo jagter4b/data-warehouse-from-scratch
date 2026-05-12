@@ -290,6 +290,18 @@ bed_bath_table → bed bath table → [bed, bath, table] → Bed Bath Table
 
 ---
 
+## Data Quality Audit Results
+
+An automated Data Quality Audit (`silver_quality_checks.sql`) was run on **2026-05-12** after the initial Silver load. The results validated the transformation logic:
+
+- **Row Counts & Deduplication**: All tables successfully loaded with 0 duplicates based on PKs. The `order_reviews` table correctly dropped 559 duplicate rows (resulting in 99,441 clean rows).
+- **NULL Handling**: Zero unexpected NULLs in key columns. Dates missing in raw data were successfully converted to our sentinels (`1900-01-01` for missing/canceled, `9999-12-31` for active/in-transit).
+- **Formatting**: ZIP codes were padded to 5 characters, categorical features Title Cased, and location strings UPPERCASED with trailing spaces removed. 
+- **Referential Integrity**: Tested 8 foreign key relationships. 7 passed with 0 orphan rows (e.g., all `order_items` matched valid `products` and `orders`).
+  - **Exception**: `silver.closed_deals` -> `silver.sellers` found **462 orphan rows**. This means there are 462 closed deals in the marketing funnel where the `seller_id` does not exist in the e-commerce `sellers` table. This is a known issue from the source data and will be handled during the Gold layer dimension modeling.
+
+---
+
 ## Files in This Directory
 
 | File | Purpose |

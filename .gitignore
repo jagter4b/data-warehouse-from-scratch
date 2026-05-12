@@ -35,3 +35,4 @@ wheels/
 *.tmp
 .idea/
 .vscode/
+silver_quality_checks_output.txt
