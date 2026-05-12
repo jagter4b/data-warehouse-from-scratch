@@ -304,6 +304,7 @@ bed_bath_table → bed bath table → [bed, bath, table] → Bed Bath Table
 | `load_marketing_qualified_leads.sql` | SP: Bronze → Silver for MQLs |
 | `load_closed_deals.sql` | SP: Bronze → Silver for closed deals |
 | `silver_master.sql` | Master orchestrator — runs all 9 SPs in order |
+| `silver_quality_checks.sql` | Comprehensive data quality audit script for the Silver layer |
 
 ## How to Run
 

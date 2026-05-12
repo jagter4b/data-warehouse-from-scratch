@@ -3,14 +3,14 @@
 🚀 **Goal**: This project builds a production-grade Data Warehouse solution following the **Medallion Architecture** (Bronze, Silver, Gold). The objective is to integrate disparate data sources—including Google Sheets, External APIs, and PostgreSQL databases—into a centralized **Single Point of Truth** in a local SQL Server instance using an **ELT (Extract, Load, Transform)** approach.
 
 > [!NOTE]
-> This project is under active development. Current focus: **Bronze Layer Ingestion**.
+> This project is under active development. Current focus: **Gold Layer Modeling**.
 
 ---
 
 ## 🏗️ Architecture: The Medallion Approach
 
 1.  **Bronze (Raw)**: Data is ingested directly from source systems as-is. Minimal processing (only adding audit columns) to ensure full data lineage.
-2.  **Silver (Cleaned/Standardized)**: *[In Progress]* Data will be cleaned, deduplicated, and typed. Relationships will be established.
+2.  **Silver (Cleaned/Standardized)**: Data is cleaned, deduplicated, and typed. Brazilian locale support is maintained via `NVARCHAR`. Relationships and context-aware sentinels (e.g., in-transit dates) are established.
 3.  **Gold (Analytical)**: *[Planned]* Star-schema dimensional modeling (Kimball style) optimized for Power BI and analytical reporting.
 
 ---
@@ -69,7 +69,7 @@ python ingestion/run_all_ingestion.py
 
 ## 📈 Roadmap
 - [x] Bronze Layer Ingestion (Idempotent ELT)
-- [ ] Silver Layer: Data Cleaning & Type Casting
-- [ ] Silver Layer: Data Quality Checks (Great Expectations)
+- [x] Silver Layer: Data Cleaning & Type Casting
+- [x] Silver Layer: Data Quality Checks (Audit Scripts)
 - [ ] Gold Layer: Dimensional Modeling (Star Schema)
 - [ ] Power BI Reporting Layer
