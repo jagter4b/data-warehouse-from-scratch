@@ -40,42 +40,42 @@ def load_table(table_name):
     st.error(f"Could not load data for {table_name}. Ensure DB is running or CSV exists in data/")
     return pd.DataFrame()
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=86400)
 def get_customer_segments():
     return load_table('ml_customer_segments')
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=86400)
 def get_churn_predictions():
     return load_table('ml_churn_predictions')
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=86400)
 def get_clv_predictions():
     return load_table('ml_clv_predictions')
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=86400)
 def get_seller_scores():
     return load_table('ml_seller_scores')
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=86400)
 def get_seller_churn():
     return load_table('ml_seller_churn')
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=86400)
 def get_delivery_risk():
     return load_table('ml_delivery_risk')
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=86400)
 def get_review_predictions():
     return load_table('ml_review_predictions')
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=86400)
 def get_obt_customers():
     return load_table('obt_customers')
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=86400)
 def get_obt_sellers():
     return load_table('obt_sellers')
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=86400)
 def get_obt_orders():
     return load_table('obt_orders')
