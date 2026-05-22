@@ -24,7 +24,7 @@
 - [Gold Layer — Dimensional Modeling](#-gold-layer--dimensional-modeling)
 - [Schema Diagram](#-schema-diagram)
 - [Reporting (TODO)](#-reporting-todo)
-- [AI / Machine Learning (TODO)](#-ai--machine-learning-todo)
+- [AI / Machine Learning](#-ai--machine-learning)
 - [Repository Structure](#-repository-structure)
 - [Getting Started](#-getting-started)
 - [Tech Stack](#️-tech-stack)
@@ -295,8 +295,29 @@ iti_grad_project/
 │   ├── bronze_metadata.csv             # Column-level metadata for all Bronze tables
 │   └── Screenshot 2026-05-11 233008.png  # Bronze ingestion run proof
 │
+├── scripts/ml/                         # Machine Learning Layer
+│   ├── create_obt_customers.py         # Create Customer One Big Table
+│   ├── create_obt_sellers.py           # Create Seller One Big Table
+│   ├── create_obt_orders.py            # Create Order One Big Table
+│   ├── ml_customer_segments.py         # Model 1: RFM Segmentation
+│   ├── ml_churn_predictions.py         # Model 2: Customer Churn
+│   ├── ml_clv_predictions.py           # Model 3: Customer LTV
+│   ├── ml_seller_scores.py             # Model 4: Seller Performance
+│   ├── ml_seller_churn.py              # Model 5: Seller Churn Risk
+│   ├── ml_delivery_risk.py             # Model 6: Delivery Risk
+│   ├── ml_review_predictions.py        # Model 7: Review Prediction
+│   └── README.md                       # ML Layer documentation
+│
+├── streamlit/                          # Streamlit Analytical Dashboard
+│   ├── app.py                          # Main entry point / overview
+│   ├── pages/                          # App pages (Customer, Seller, Order Intelligence)
+│   ├── components/                     # Reusable charts, filters, and db connection
+│   ├── data/                           # Exported CSVs for Demo Mode
+│   └── README.md                       # Streamlit app documentation
+│
 ├── geolocation_api.gs                  # Google Apps Script: serves geolocation as REST API
 ├── requirements.txt                    # Python dependencies
+├── export_csv.py                       # Export script for Streamlit Demo Mode
 ├── .env                                # Environment variables (not committed)
 ├── .gitignore                          # Ignores venv, .env, __pycache__, etc.
 └── README.md                           # This file
@@ -406,9 +427,11 @@ ORDER BY tbl;
 | **Database (Source)** | Neon PostgreSQL (serverless cloud) |
 | **Python Libraries** | `pandas`, `sqlalchemy`, `pyodbc`, `psycopg2-binary`, `python-dotenv`, `requests`, `openpyxl` |
 | **Cloud Tools** | Google Drive API, Google Apps Script (REST API) |
-| **Data Architecture** | Medallion Architecture (Bronze/Silver/Gold) |
+| **Data Architecture** | Medallion Architecture (Bronze/Silver/Gold/ML) |
 | **Dimensional Modeling** | Kimball Galaxy Schema (Star + conformed dims) |
 | **ETL Patterns** | ELT, Idempotency, SCD Type 1, Accumulating Snapshot |
+| **Machine Learning** | XGBoost, scikit-learn, imbalanced-learn, K-Means, SMOTE |
+| **Frontend/Dashboard** | Streamlit, Plotly Express |
 | **Reporting (planned)** | Microsoft Power BI |
 
 ---
@@ -419,9 +442,20 @@ ORDER BY tbl;
 
 ---
 
-## 🤖 AI / Machine Learning (TODO)
+## 🤖 AI / Machine Learning
 
-*Predictive models for customer churn and lifetime value.*
+The Machine Learning layer transforms the highly normalized Gold layer into flattened **One Big Tables (OBTs)** to feed predictive models.
+
+- **OBTs Built:** Customers, Sellers, and Orders.
+- **7 Predictive Models Deployed:**
+  - **Customer Intelligence:** RFM Segmentation, Churn Risk (Random Forest), Lifetime Value (XGBoost)
+  - **Seller Intelligence:** Performance Scoring (K-Means), Churn Risk (XGBoost)
+  - **Order Intelligence:** Delivery Risk, Review Score Prediction (XGBoost)
+
+All ML results are written back to the Gold schema and surfaced dynamically via a multi-page **Streamlit Application**. The Streamlit dashboard offers an interactive "Demo Mode" fallback mechanism allowing it to run smoothly in the cloud.
+
+Read the exhaustive ML documentation here: [`scripts/ml/README.md`](scripts/ml/README.md).
+Read the Streamlit UI documentation here: [`streamlit/README.md`](streamlit/README.md).
 
 ---
 
@@ -434,6 +468,9 @@ ORDER BY tbl;
 - [x] **Gold** — Kimball Galaxy Schema DDL (7 dims, 5 facts, 1 outrigger, FK constraints)
 - [x] **Gold** — All 9 load stored procedures + master orchestrator
 - [x] **Gold** — Conformed date dimension with sentinel rows + 5-year date spine
+- [x] **ML** — Flattened One Big Tables (OBT) for Customers, Sellers, and Orders
+- [x] **ML** — 7 Predictive Models deployed handling Churn, LTV, Performance, and Risk
+- [x] **Frontend** — Interactive Streamlit multi-page dashboard built with Plotly
 - [ ] **Reporting** — Power BI dashboards (e-commerce performance + marketing funnel)
 
 ---
@@ -445,6 +482,8 @@ Each layer has its own detailed README:
 - [`ingestion/README.md`](ingestion/README.md) — Bronze layer ingestion results and design decisions
 - [`scripts/silver/README.md`](scripts/silver/README.md) — Table-by-table transformation logic and quality audit results
 - [`scripts/gold/README.md`](scripts/gold/README.md) — Full Gold schema reference: all dimensions, facts, FK map, and ETL strategies
+- [`scripts/ml/README.md`](scripts/ml/README.md) — Machine Learning layer: algorithms, features, OBT structures, and diagnostics
+- [`streamlit/README.md`](streamlit/README.md) — Streamlit Analytics UI and Demo Mode deployment instructions
 
 ---
 
