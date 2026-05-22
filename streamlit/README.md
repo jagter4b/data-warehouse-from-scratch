@@ -1,5 +1,7 @@
 # Olist ML Analytics — Streamlit Dashboard
 
+🚀 **Live Demo:** [https://data-warehouse-from-scratch-gfmb6jraqdszq6tfzrm38q.streamlit.app/](https://data-warehouse-from-scratch-gfmb6jraqdszq6tfzrm38q.streamlit.app/)
+
 A multi-page Streamlit application visualizing the 7 predictive ML models built on the Olist Data Warehouse.  
 Reads exclusively from pre-exported CSV snapshots (`data/*.csv`) in cloud mode — zero database required.
 
