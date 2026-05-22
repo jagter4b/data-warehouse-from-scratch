@@ -66,6 +66,8 @@ The datasets are linked through `seller_id` — enabling cross-domain analysis b
 
 The project follows the **Medallion Architecture** — a layered data engineering pattern that progressively refines data quality and semantic richness.
 
+![Data Flow Diagram](./docs/DataFlowDiagram.png)
+
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                        SOURCE SYSTEMS                           │
@@ -282,7 +284,7 @@ EXEC gold.gold_master;
 
 ## 📐 Schema Diagram
 
-![Kimball Galaxy Schema](docs/dwh_schema.png)
+![Kimball Galaxy Schema](./docs/dwh_schema.png)
 
 ---
 
