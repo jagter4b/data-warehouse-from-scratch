@@ -2,7 +2,7 @@
 
 # 🏭 Olist Data Warehouse — From Scratch
 
-> A production-grade, end-to-end **Data Warehouse** built using the **Medallion Architecture** (Bronze → Silver → Gold), integrating two Olist datasets through an automated ELT pipeline into a Kimball-style **Galaxy Schema** optimized for analytical reporting in Power BI.
+> A complete, full-stack **Data Project** covering **Data Engineering, Reporting, and AI**. Built using the **Medallion Architecture** (Bronze → Silver → Gold), integrating two Olist datasets through an automated ELT pipeline into a Kimball-style **Galaxy Schema** optimized for analytical reporting in Power BI and Machine Learning applications.
 
 [![Python](https://img.shields.io/badge/Python-3.9+-3776AB?logo=python&logoColor=white)](https://python.org)
 [![SQL Server](https://img.shields.io/badge/SQL%20Server-2022-CC2927?logo=microsoftsqlserver&logoColor=white)](https://www.microsoft.com/sql-server)
@@ -23,6 +23,8 @@
 - [Silver Layer — Transformation](#️-silver-layer--transformation)
 - [Gold Layer — Dimensional Modeling](#-gold-layer--dimensional-modeling)
 - [Schema Diagram](#-schema-diagram)
+- [Reporting (TODO)](#-reporting-todo)
+- [AI / Machine Learning (TODO)](#-ai--machine-learning-todo)
 - [Repository Structure](#-repository-structure)
 - [Getting Started](#-getting-started)
 - [Tech Stack](#️-tech-stack)
@@ -32,7 +34,7 @@
 
 ## 🎯 Project Overview
 
-This project demonstrates a complete **Data Engineering pipeline** from raw source data to an analytics-ready dimensional model. It was built as a graduation project for ITI (Information Technology Institute), showcasing real-world data warehousing skills.
+This project demonstrates a complete **Full-Stack Data Solution** covering Data Engineering, Reporting, and AI. It was built as a graduation project for ITI (Information Technology Institute), showcasing end-to-end data skills from raw source data to an analytics-ready dimensional model and beyond.
 
 **What was built:**
 
@@ -77,41 +79,6 @@ The project follows the **Medallion Architecture** — a layered data engineerin
 </div>
 <br>
 
-<details>
-<summary><b>View ASCII Architecture Diagram</b></summary>
-
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│                        SOURCE SYSTEMS                           │
-│  ┌──────────────┐   ┌──────────────────┐   ┌────────────────┐  │
-│  │ Neon Postgres│   │  Google Drive /  │   │  Google Apps   │  │
-│  │  (7 tables)  │   │  Sheets (3 tbls) │   │  Script API    │  │
-│  └──────┬───────┘   └────────┬─────────┘   └───────┬────────┘  │
-└─────────┼────────────────────┼─────────────────────┼───────────┘
-          │                    │                      │
-          ▼  Python (ELT)      ▼                      ▼
-┌─────────────────────────────────────────────────────────────────┐
-│  🥉 BRONZE  [BI_AI].[bronze]  — Raw / As-Is                     │
-│  11 tables │ ~1.28M rows │ Full audit columns (_ingested_at)    │
-└────────────────────────┬────────────────────────────────────────┘
-                         │  T-SQL Stored Procedures
-                         ▼
-┌─────────────────────────────────────────────────────────────────┐
-│  🥈 SILVER  [BI_AI].[silver]  — Cleaned / Standardized          │
-│  9 tables │ 559K rows │ Deduped, typed, sentinel-filled         │
-└────────────────────────┬────────────────────────────────────────┘
-                         │  T-SQL Stored Procedures
-                         ▼
-┌─────────────────────────────────────────────────────────────────┐
-│  🥇 GOLD  [BI_AI].[gold]  — Analytics-Ready Galaxy Schema        │
-│  7 dimensions │ 5 fact tables │ 1 outrigger │ FK constraints    │
-└─────────────────────────────────────────────────────────────────┘
-                         │
-                         ▼
-                  📊 Power BI Reports
-```
-</details>
-
 ---
 
 ## 🥉 Bronze Layer — Ingestion
@@ -120,12 +87,12 @@ The project follows the **Medallion Architecture** — a layered data engineerin
 
 ### Source Systems & Results
 
-| Pipeline | Source | Tables | Rows | Duration |
-|:---|:---|:---|:---|:---|
-| `ingest_neon_postgres.py` | Neon PostgreSQL (SSL) | 7 | customers (99K), orders (99K), items (112K), payments (103K), sellers (3K), products (32K), translations (71) | 159.2s |
-| `ingest_google_drive.py` | Google Drive / Sheets | 3 | closed_deals (842), MQLs (8K), order_reviews (100K) | 93.3s |
-| `ingest_geolocation_api.py` | Google Apps Script REST API | 1 | geolocation (**855,781 rows**, 52MB) | 53.5s |
-| **Total** | — | **11** | **~1.28 million rows** | **306s** |
+| Pipeline | Source | Tables | Rows |
+|:---|:---|:---|:---|
+| `ingest_neon_postgres.py` | Neon PostgreSQL (SSL) | 7 | customers (99K), orders (99K), items (112K), payments (103K), sellers (3K), products (32K), translations (71) |
+| `ingest_google_drive.py` | Google Drive / Sheets | 3 | closed_deals (842), MQLs (8K), order_reviews (100K) |
+| `ingest_geolocation_api.py` | Google Apps Script REST API | 1 | geolocation (**855,781 rows**, 52MB) |
+| **Total** | — | **11** | **~1.28 million rows** |
 
 ### Key Engineering Solutions
 
@@ -203,33 +170,13 @@ A comprehensive audit (`silver_quality_checks.sql`) was run post-load and valida
 
 **Execution:** `EXEC gold.gold_master;`
 
-### Schema Overview
+### Schema Diagram
 
-```
-                    ┌─────────────┐
-                    │  dim_date   │ (conformed — shared by all facts)
-                    └──────┬──────┘
-                           │
-          ┌────────────────┼────────────────┐
-          │                │                │
-    ┌─────▼──────┐  ┌──────▼──────┐  ┌─────▼──────────┐
-    │ dim_customer│  │ dim_product │  │   dim_seller   │ ← SHARED
-    └─────────────┘  └─────────────┘  └────────┬───────┘
-                                               │
-   E-Commerce Facts:                           │  Marketing Facts:
-   ┌─────────────────────┐         ┌───────────▼──────────┐
-   │  fact_order_items   │         │ fact_marketing_funnel │
-   │  fact_payments      │         └──────────────────────┘
-   │  fact_reviews ──────┼──► review_comments (outrigger)
-   │  fact_order_life_   │
-   │    cycle            │
-   └─────────────────────┘
-        │
-   ┌────▼──────────────┐  ┌──────────────────────┐
-   │ dim_payment_type  │  │  dim_marketing_channel│
-   │ dim_order_status  │  └──────────────────────┘
-   └───────────────────┘
-```
+<div align="center">
+  <img src="./docs/dwh_schema.png" alt="Kimball Galaxy Schema" width="100%">
+  <br>
+  <em>Kimball Galaxy Schema with conformed dimensions</em>
+</div>
 
 ### Dimensions (7 total)
 
@@ -293,17 +240,7 @@ EXEC gold.gold_master;
 
 > Dimensions always load before facts. A single failure halts the entire pipeline via `THROW` on each `BEGIN CATCH`.
 
----
 
-## 📐 Schema Diagram
-
-<div align="center">
-  <img src="./docs/dwh_schema.png" alt="Kimball Galaxy Schema" width="100%">
-  <br>
-  <em>Kimball Galaxy Schema with conformed dimensions</em>
-</div>
-
----
 
 ## 📁 Repository Structure
 
@@ -473,6 +410,18 @@ ORDER BY tbl;
 | **Dimensional Modeling** | Kimball Galaxy Schema (Star + conformed dims) |
 | **ETL Patterns** | ELT, Idempotency, SCD Type 1, Accumulating Snapshot |
 | **Reporting (planned)** | Microsoft Power BI |
+
+---
+
+## 📊 Reporting (TODO)
+
+*Dashboards and reports covering e-commerce and marketing funnel analytics.*
+
+---
+
+## 🤖 AI / Machine Learning (TODO)
+
+*Predictive models for customer churn and lifetime value.*
 
 ---
 
