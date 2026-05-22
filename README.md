@@ -1,3 +1,5 @@
+<div align="center">
+
 # 🏭 Olist Data Warehouse — From Scratch
 
 > A production-grade, end-to-end **Data Warehouse** built using the **Medallion Architecture** (Bronze → Silver → Gold), integrating two Olist datasets through an automated ELT pipeline into a Kimball-style **Galaxy Schema** optimized for analytical reporting in Power BI.
@@ -7,6 +9,8 @@
 [![T-SQL](https://img.shields.io/badge/T--SQL-Stored%20Procedures-blue)](https://docs.microsoft.com/en-us/sql/t-sql/)
 [![Architecture](https://img.shields.io/badge/Architecture-Medallion-gold)](https://databricks.com/glossary/medallion-architecture)
 [![Modeling](https://img.shields.io/badge/Modeling-Kimball%20Galaxy%20Schema-purple)](https://www.kimballgroup.com)
+
+</div>
 
 ---
 
@@ -66,9 +70,17 @@ The datasets are linked through `seller_id` — enabling cross-domain analysis b
 
 The project follows the **Medallion Architecture** — a layered data engineering pattern that progressively refines data quality and semantic richness.
 
-![Data Flow Diagram](./docs/DataFlowDiagram.png)
+<div align="center">
+  <img src="./docs/DataFlowDiagram.png" alt="Data Flow Diagram" width="100%">
+  <br>
+  <em>End-to-end ELT data pipeline showing ingestion, transformation, and dimensional modeling.</em>
+</div>
+<br>
 
-```
+<details>
+<summary><b>View ASCII Architecture Diagram</b></summary>
+
+```text
 ┌─────────────────────────────────────────────────────────────────┐
 │                        SOURCE SYSTEMS                           │
 │  ┌──────────────┐   ┌──────────────────┐   ┌────────────────┐  │
@@ -98,6 +110,7 @@ The project follows the **Medallion Architecture** — a layered data engineerin
                          ▼
                   📊 Power BI Reports
 ```
+</details>
 
 ---
 
@@ -284,7 +297,11 @@ EXEC gold.gold_master;
 
 ## 📐 Schema Diagram
 
-![Kimball Galaxy Schema](./docs/dwh_schema.png)
+<div align="center">
+  <img src="./docs/dwh_schema.png" alt="Kimball Galaxy Schema" width="100%">
+  <br>
+  <em>Kimball Galaxy Schema with conformed dimensions</em>
+</div>
 
 ---
 
