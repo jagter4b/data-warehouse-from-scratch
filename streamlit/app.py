@@ -6,65 +6,113 @@ st.set_page_config(
     page_title="Olist ML Analytics",
     page_icon="📊",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
 )
 
-# Load custom CSS
-css_path = os.path.join(os.path.dirname(__file__), 'assets', 'style.css')
-if os.path.exists(css_path):
-    with open(css_path) as f:
-        st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
+from components.filters import load_css, sidebar_header, last_updated
+from components.db import get_summary, _ml_segments, _ml_seller_sc
+from components.charts import bar, gauge, PALETTE
 
-from components.db import (
-    get_customer_segments, get_churn_predictions, get_clv_predictions,
-    get_seller_scores, get_seller_churn, get_delivery_risk, get_review_predictions
+load_css()
+sidebar_header("Home · Overview")
+
+# ─── Header ──────────────────────────────────────────────────────
+st.title("Olist ML Analytics")
+st.markdown(
+    '<p style="color:#52525B;font-size:15px;margin-top:-8px;margin-bottom:28px;">'
+    'Predictive Intelligence Dashboard &nbsp;·&nbsp; Brazilian E-Commerce Dataset 2016–2018'
+    '</p>',
+    unsafe_allow_html=True,
 )
 
-st.title("📊 Olist ML Analytics")
-st.subheader("Predictive Intelligence across Customers, Sellers and Orders")
+with st.spinner("Loading pipeline summary…"):
+    s = get_summary()
 
-with st.spinner("Loading pipeline health..."):
-    # Load just enough data to get counts
-    df_cust = get_customer_segments()
-    df_sell = get_seller_scores()
-    df_ord = get_delivery_risk()
-    
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.metric("Total Customers Scored", f"{len(df_cust):,}" if not df_cust.empty else "N/A")
-    with col2:
-        st.metric("Total Sellers Scored", f"{len(df_sell):,}" if not df_sell.empty else "N/A")
-    with col3:
-        st.metric("Total Orders Scored", f"{len(df_ord):,}" if not df_ord.empty else "N/A")
-    with col4:
-        st.metric("Models Deployed", "7")
+# ─── KPI Row ─────────────────────────────────────────────────────
+c1, c2, c3, c4, c5, c6 = st.columns(6)
+c1.metric("Customers Scored",    f"{s['n_customers']:,}")
+c2.metric("Sellers Scored",      f"{s['n_sellers']:,}")
+c3.metric("Orders Scored",       f"{s['n_orders']:,}")
+c4.metric("Predicted Churn",     f"{s['churn_rate']:.1f}%",
+          help="% of customers predicted inactive (>120 days). High because Olist buyers are typically one-time.")
+c5.metric("On-Time Delivery",    f"{s['ontime_rate']:.1f}%")
+c6.metric("Avg Predicted Score", f"{s['avg_review']:.2f} ★")
 
 st.markdown("---")
-st.markdown("### Model Performance Summary")
 
-# Static summary table as per request
-perf_data = [
-    {"Model": "RFM Segmentation", "Domain": "Customer", "Algorithm": "K-Means", "Key Metric": "Silhouette", "Score": 0.4788, "Status": "🟩 Optimal"},
-    {"Model": "Churn Prediction", "Domain": "Customer", "Algorithm": "Random Forest", "Key Metric": "AUC-ROC", "Score": 0.6829, "Status": "🟨 Acceptable"},
-    {"Model": "CLV Prediction", "Domain": "Customer", "Algorithm": "XGBoost", "Key Metric": "R²", "Score": 0.1710, "Status": "🟩 Honest Baseline"},
-    {"Model": "Seller Scores", "Domain": "Seller", "Algorithm": "K-Means", "Key Metric": "Silhouette", "Score": 0.5679, "Status": "🟩 Optimal"},
-    {"Model": "Seller Churn", "Domain": "Seller", "Algorithm": "XGBoost", "Key Metric": "AUC-ROC", "Score": 0.7846, "Status": "🟩 Optimal"},
-    {"Model": "Delivery Risk", "Domain": "Order", "Algorithm": "XGBoost", "Key Metric": "AUC-ROC", "Score": 0.7483, "Status": "🟨 Acceptable"},
-    {"Model": "Review Prediction", "Domain": "Order", "Algorithm": "XGBoost", "Key Metric": "RMSE", "Score": 1.1311, "Status": "🟩 Acceptable"}
+# ─── Model Registry + Visual ─────────────────────────────────────
+st.markdown("## 🧠 Model Registry")
+
+MODELS = [
+    {"Model":"RFM Segmentation",  "Domain":"Customer","Algorithm":"K-Means (k=4)",    "Metric":"Silhouette","Score":0.4788,"Rows":96097, "Status":"✅ Optimal"},
+    {"Model":"Churn Prediction",  "Domain":"Customer","Algorithm":"XGBoost / RF",      "Metric":"AUC-ROC",   "Score":0.6829,"Rows":96096, "Status":"🟡 Acceptable"},
+    {"Model":"CLV Prediction",    "Domain":"Customer","Algorithm":"XGBoost Regressor", "Metric":"R²",        "Score":0.1710,"Rows":95135, "Status":"ℹ️ Honest Baseline"},
+    {"Model":"Seller Scoring",    "Domain":"Seller",  "Algorithm":"K-Means (k=3)",     "Metric":"Silhouette","Score":0.5679,"Rows":3096,  "Status":"✅ Optimal"},
+    {"Model":"Seller Churn",      "Domain":"Seller",  "Algorithm":"XGBoost",           "Metric":"AUC-ROC",   "Score":0.7846,"Rows":3096,  "Status":"✅ Optimal"},
+    {"Model":"Delivery Risk",     "Domain":"Order",   "Algorithm":"XGBoost",           "Metric":"AUC-ROC",   "Score":0.7483,"Rows":98651, "Status":"🟡 Acceptable"},
+    {"Model":"Review Prediction", "Domain":"Order",   "Algorithm":"XGBoost Regressor", "Metric":"RMSE",      "Score":1.1311,"Rows":96460, "Status":"🟡 Acceptable"},
 ]
-df_perf = pd.DataFrame(perf_data)
-st.dataframe(df_perf, use_container_width=True, hide_index=True)
+df_m = pd.DataFrame(MODELS)
+
+col_chart, col_gauge = st.columns([3, 2])
+
+with col_chart:
+    dom_colors = {"Customer":"#7C3AED","Seller":"#06B6D4","Order":"#F59E0B"}
+    fig = bar(df_m, "Model", "Score", "Model Performance Scores by Domain",
+              color_col="Domain", cmap=dom_colors)
+    fig.update_layout(height=320)
+    # Add a reference line at 0.70
+    fig.add_hline(y=0.70, line_dash="dot", line_color="#52525B", line_width=1.2,
+                  annotation_text="AUC 0.70 target",
+                  annotation_font_color="#52525B", annotation_font_size=11)
+    st.plotly_chart(fig, use_container_width=True)
+
+with col_gauge:
+    auc_scores = [0.6829, 0.7846, 0.7483]
+    avg_auc = sum(auc_scores) / len(auc_scores) * 100
+    fig_g = gauge(round(avg_auc, 1), "Avg Classifier AUC",
+                  lo=60, hi=75, c_lo="#F43F5E", c_mid="#F59E0B", c_hi="#10B981")
+    st.plotly_chart(fig_g, use_container_width=True)
+
+st.dataframe(df_m, use_container_width=True, hide_index=True)
 
 st.markdown("---")
-st.markdown("### Navigation")
 
-colA, colB, colC = st.columns(3)
-with colA:
-    st.info("**Customer Intelligence**\n\nAnalyze segmentation, churn risk, and lifetime value.\n\n*Models: Segments, Churn, CLV*")
-with colB:
-    st.info("**Seller Intelligence**\n\nEvaluate seller performance clusters and dropout risks.\n\n*Models: Performance, Churn*")
-with colC:
-    st.info("**Order Intelligence**\n\nPredict delivery delays and forecast customer satisfaction.\n\n*Models: Delivery, Reviews*")
+# ─── Navigation Cards ────────────────────────────────────────────
+st.markdown("## 🗺️ Dashboards")
 
-st.markdown("---")
-st.caption("Built on Medallion Architecture | Gold Layer | Olist Dataset 2016-2018")
+CARDS = [
+    ("👥", "Customer Intelligence",
+     "Explore RFM behavioral segments across 96k customers, rank churn risk by probability tier, and predict lifetime value with XGBoost.",
+     ["RFM Segments", "Churn Risk", "CLV"]),
+    ("🏪", "Seller Intelligence",
+     "Composite performance scoring across 3,096 sellers with KMeans clustering. Identify the 24 top performers and predict dropout probability.",
+     ["Performance", "Churn Risk"]),
+    ("📦", "Order Intelligence",
+     "Pre-dispatch delivery delay detection and post-delivery review score forecasting across 99k orders.",
+     ["Delivery Risk", "Review Prediction"]),
+]
+
+cols = st.columns(3)
+for col, (icon, title, desc, chips) in zip(cols, CARDS):
+    chip_html = "".join(f'<span class="oc-chip">{c}</span>' for c in chips)
+    with col:
+        st.markdown(
+            f"""
+            <div class="olist-card">
+              <span class="oc-icon">{icon}</span>
+              <div class="oc-title">{title}</div>
+              <div class="oc-desc">{desc}</div>
+              <div class="oc-chips">{chip_html}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+st.markdown("")
+st.caption(
+    "Medallion Architecture: Bronze → Silver → Gold → ML  ·  "
+    "7 predictive models  ·  3 One-Big-Tables  ·  ~300k scored records"
+)
+
+last_updated(s["scored_at"])

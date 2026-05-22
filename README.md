@@ -633,38 +633,73 @@ This fix was applied before any downstream consumption, ensuring all predictions
 
 🚀 **Live at:** [https://data-warehouse-from-scratch-gfmb6jraqdszq6tfzrm38q.streamlit.app/](https://data-warehouse-from-scratch-gfmb6jraqdszq6tfzrm38q.streamlit.app/)
 
-The Streamlit application reads **exclusively** from the Gold layer ML result tables and OBTs. Zero writes to the database.
+The dashboard is a fully rebuilt, premium Streamlit application consuming exclusively the Gold layer ML result tables and OBTs via pre-exported CSV snapshots. Zero writes to the database.
 
 ### Pages
 
-| Page | Content | Models Visualized |
+| Page | Tabs | Models |
 |:---|:---|:---|
-| **Home** | Pipeline health KPIs, model performance summary table | All 7 |
-| **Customer Intelligence** | RFM segment distribution, churn risk tiers, CLV tier breakdown | Models 1, 2, 3 |
-| **Seller Intelligence** | Performance cluster analysis, seller churn risk heatmap | Models 4, 5 |
-| **Order Intelligence** | Delivery risk distribution, review prediction accuracy | Models 6, 7 |
+| **Home** | Overview · Model Registry · Nav Cards | All 7 |
+| **Customer Intelligence** | RFM Segments · Churn Prediction · Lifetime Value | Models 1, 2, 3 |
+| **Seller Intelligence** | Performance Scoring · Churn Risk | Models 4, 5 |
+| **Order Intelligence** | Delivery Risk · Review Prediction | Models 6, 7 |
 
-<!-- Screenshots — replace with actual captures after deployment -->
-![Home Page — Pipeline Health Overview](./docs/streamlit_home.png)
-![Customer Intelligence — RFM + Churn + CLV](./docs/streamlit_customers.png)
-![Order Intelligence — Delivery Risk + Reviews](./docs/streamlit_orders.png)
+### Design System
 
-### Demo Mode
+- **Theme:** Deep dark (`#09090B`) with violet/cyan gradient branding
+- **Charts:** Plotly with transparent backgrounds, semantic color palettes keyed to exact ML label strings
+- **Scatter plots:** Auto-sampled to 5,000 rows to prevent browser overload across 96k+ datasets
+- **Animations:** CSS `riseIn` stagger on metric cards and chart containers
+- **Layout:** Multi-tab pages with sidebar filters (multiselect + range sliders) and CSV export per section
 
-The dashboard includes a **built-in fallback mechanism** for environments without SQL Server access:
+### CSV Fallback (Demo Mode)
 
-1. On startup, `components/db.py` attempts to connect to the configured SQL Server instance
-2. If the connection fails (e.g., on Streamlit Cloud), it **automatically** loads pre-exported CSV snapshots from `streamlit/data/`
-3. The CSV files are committed to the repository via `git add -f` (overriding the global `*.csv` gitignore rule)
-4. **Result:** The live dashboard works identically on Streamlit Cloud without any database tunnel, VPN, or secrets configuration
+`components/db.py` attempts a live SQL Server connection first; if unavailable (Streamlit Cloud),
+it automatically loads the 10 pre-exported CSV files from `streamlit/data/`. No secrets or
+environment variables are required for the cloud deployment to work.
 
 ### Run Locally
 
 ```bash
+# From the project root
 cd streamlit
 pip install -r requirements.txt
 streamlit run app.py
+# Opens at http://localhost:8501
 ```
+
+### Deploy to Streamlit Community Cloud
+
+**Step 1 — Force-commit the CSV snapshots** (they are gitignored by default):
+
+```bash
+git add -f streamlit/data/*.csv
+git commit -m "feat: add CSV snapshots for Streamlit Cloud deployment"
+git push
+```
+
+**Step 2 — Create a new app** at [share.streamlit.io](https://share.streamlit.io):
+
+| Field | Value |
+|:---|:---|
+| Repository | `your-github-username/data-warehouse-from-scratch` |
+| Branch | `main` |
+| **Main file path** | `streamlit/app.py` |
+| App URL | Choose a custom slug |
+
+**Step 3 — No secrets needed.** The CSV fallback activates automatically when no DB host is set.
+Click **Deploy** — the app will be live in ~1–2 minutes.
+
+**Refreshing data after a pipeline re-run:**
+
+```bash
+python export_csv.py          # Re-export from Gold layer
+git add -f streamlit/data/*.csv
+git commit -m "chore: refresh ML data snapshots"
+git push                      # Streamlit Cloud auto-redeploys
+```
+
+> See [`streamlit/README.md`](streamlit/README.md) for full deployment reference.
 
 ---
 
@@ -818,7 +853,14 @@ python scripts/ml/ml_delivery_risk.py --execute
 python scripts/ml/ml_review_predictions.py --execute
 ```
 
-### Step 9: Launch Streamlit Dashboard
+### Step 9: Export CSVs for the Dashboard
+
+```bash
+# From the project root — exports all 10 Gold/ML tables to streamlit/data/
+python export_csv.py
+```
+
+### Step 10: Launch Streamlit Dashboard
 
 ```bash
 cd streamlit
@@ -856,8 +898,9 @@ streamlit run app.py
 | **CLV R² = 0.1710** | Honest, leakage-free — but limited predictive power due to single-purchase marketplace behavior |
 | **Customer Churn AUC = 0.6829** | Acceptable but not strong — ~75% of Olist customers make only 1 purchase, limiting churn signals |
 | **Review RMSE = 1.1311** | Inherently bounded by the subjectivity of human satisfaction ratings |
-| **Local SQL Server** | Not cloud-hosted; requires ODBC Driver 17 and Windows Authentication |
+| **Local SQL Server** | Not cloud-hosted; requires ODBC Driver 17 and Windows Authentication — dashboard uses CSV fallback on Streamlit Cloud |
 | **462 orphan sellers** | `closed_deals` references sellers not in the e-commerce dataset — handled via unknown member |
+| **CSV data freshness** | Streamlit Cloud serves pre-exported CSVs; data is a static snapshot unless `export_csv.py` is re-run and pushed |
 
 ### Future Work
 
@@ -905,5 +948,7 @@ Built with ❤️ using Python, SQL Server, XGBoost, and Streamlit
 *ITI (Information Technology Institute) — Graduation Project*
 
 🚀 **Live Demo:** [https://data-warehouse-from-scratch-gfmb6jraqdszq6tfzrm38q.streamlit.app/](https://data-warehouse-from-scratch-gfmb6jraqdszq6tfzrm38q.streamlit.app/)
+
+📖 **Deployment Guide:** [`streamlit/README.md`](streamlit/README.md)
 
 </div>

@@ -1,33 +1,259 @@
-/* Custom styling for Olist ML Analytics Dashboard */
+/* ═══════════════════════════════════════════════════════════════════
+   OLIST ML ANALYTICS  ·  Premium Design System
+   ═══════════════════════════════════════════════════════════════════ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+/* ── Tokens ─────────────────────────────────────────────────────── */
+:root {
+  --bg:          #09090B;
+  --surface:     #18181B;
+  --surface2:    #27272A;
+  --border:      rgba(113,113,122,0.20);
+  --border-hi:   rgba(124,58,237,0.45);
+  --violet:      #7C3AED;
+  --violet-l:    #A78BFA;
+  --cyan:        #06B6D4;
+  --emerald:     #10B981;
+  --amber:       #F59E0B;
+  --rose:        #F43F5E;
+  --slate:       #64748B;
+  --text:        #E4E4E7;
+  --text2:       #A1A1AA;
+  --text3:       #71717A;
+  --radius:      14px;
+  --radius-sm:   8px;
+  --shadow:      0 4px 24px rgba(0,0,0,0.40);
+  --glow-v:      0 0 32px rgba(124,58,237,0.18);
+  --glow-c:      0 0 32px rgba(6,182,212,0.12);
+}
+
+/* ── Base ───────────────────────────────────────────────────────── */
 .stApp {
-    background-color: #0E1117;
+  background: var(--bg) !important;
+  font-family: 'Inter', -apple-system, sans-serif !important;
+}
+* { box-sizing: border-box; }
+
+/* ── Typography ─────────────────────────────────────────────────── */
+h1 {
+  font-size: 2rem !important;
+  font-weight: 900 !important;
+  letter-spacing: -0.04em !important;
+  background: linear-gradient(135deg, #A78BFA 0%, #7C3AED 40%, #06B6D4 100%);
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+  margin-bottom: 2px !important;
+}
+h2 {
+  color: var(--text) !important;
+  font-size: 1.25rem !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.02em !important;
+}
+h3 {
+  color: var(--text2) !important;
+  font-size: 1rem !important;
+  font-weight: 600 !important;
 }
 
-.stMetric {
-    background-color: #1A1D27;
-    padding: 15px;
-    border-radius: 8px;
-    border-left: 4px solid #00C853;
+/* ── Metric Cards ───────────────────────────────────────────────── */
+[data-testid="stMetric"] {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius) !important;
+  padding: 20px 22px !important;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.22s ease, box-shadow 0.22s ease !important;
 }
-
+[data-testid="stMetric"]::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, rgba(124,58,237,0.06), rgba(6,182,212,0.03));
+  pointer-events: none;
+}
+[data-testid="stMetric"]::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #7C3AED, #06B6D4);
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+[data-testid="stMetric"]:hover {
+  transform: translateY(-3px) !important;
+  box-shadow: var(--glow-v) !important;
+  border-color: var(--border-hi) !important;
+}
 [data-testid="stMetricValue"] {
-    color: #FAFAFA;
-    font-size: 24px;
+  color: #FAFAFA !important;
+  font-size: 2rem !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.03em !important;
+  line-height: 1.1 !important;
 }
-
 [data-testid="stMetricLabel"] {
-    color: #A0AAB2;
+  color: var(--text3) !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.08em !important;
+  margin-bottom: 6px !important;
+}
+[data-testid="stMetricDelta"] { font-size: 13px !important; font-weight: 500 !important; }
+
+/* ── Tabs ───────────────────────────────────────────────────────── */
+.stTabs [data-baseweb="tab-list"] {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius) !important;
+  padding: 5px !important;
+  gap: 3px !important;
+}
+.stTabs [data-baseweb="tab"] {
+  border-radius: var(--radius-sm) !important;
+  padding: 10px 24px !important;
+  font-weight: 500 !important;
+  font-size: 14px !important;
+  color: var(--text3) !important;
+  transition: all 0.2s !important;
+  border-bottom: none !important;
+}
+.stTabs [aria-selected="true"] {
+  background: linear-gradient(135deg, rgba(124,58,237,0.22), rgba(6,182,212,0.12)) !important;
+  color: var(--violet-l) !important;
+  font-weight: 600 !important;
+  border-bottom: none !important;
+  box-shadow: inset 0 0 0 1px rgba(124,58,237,0.30) !important;
 }
 
-.stDataFrame {
-    background-color: #1A1D27;
+/* ── Chart Wrappers ─────────────────────────────────────────────── */
+[data-testid="stPlotlyChart"] {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius) !important;
+  padding: 6px !important;
+  transition: border-color 0.2s, box-shadow 0.2s !important;
+}
+[data-testid="stPlotlyChart"]:hover {
+  border-color: rgba(124,58,237,0.25) !important;
+  box-shadow: var(--glow-v) !important;
 }
 
-/* Make headers slightly greener */
-h1, h2, h3 {
-    color: #FAFAFA !important;
+/* ── Sidebar ────────────────────────────────────────────────────── */
+[data-testid="stSidebar"] {
+  background: var(--surface) !important;
+  border-right: 1px solid var(--border) !important;
+}
+[data-testid="stSidebar"] h1 {
+  -webkit-text-fill-color: var(--text) !important;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  background: none !important;
 }
 
-h1 strong, h2 strong, h3 strong {
-    color: #00C853 !important;
+/* ── DataFrames ─────────────────────────────────────────────────── */
+[data-testid="stDataFrame"] {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius) !important;
+  overflow: hidden !important;
 }
+
+/* ── Buttons ────────────────────────────────────────────────────── */
+.stDownloadButton > button, .stButton > button {
+  background: linear-gradient(135deg, rgba(124,58,237,0.15), rgba(6,182,212,0.08)) !important;
+  border: 1px solid rgba(124,58,237,0.30) !important;
+  border-radius: var(--radius-sm) !important;
+  color: var(--violet-l) !important;
+  font-weight: 600 !important;
+  font-size: 13px !important;
+  transition: all 0.2s !important;
+  letter-spacing: 0.01em;
+}
+.stDownloadButton > button:hover, .stButton > button:hover {
+  background: linear-gradient(135deg, rgba(124,58,237,0.28), rgba(6,182,212,0.15)) !important;
+  border-color: var(--violet-l) !important;
+  box-shadow: var(--glow-v) !important;
+  transform: translateY(-1px) !important;
+}
+
+/* ── Info / Warning ─────────────────────────────────────────────── */
+[data-testid="stInfo"] {
+  background: rgba(6,182,212,0.07) !important;
+  border: 1px solid rgba(6,182,212,0.20) !important;
+  border-left: 3px solid var(--cyan) !important;
+  border-radius: var(--radius-sm) !important;
+}
+[data-testid="stWarning"] {
+  background: rgba(245,158,11,0.07) !important;
+  border: 1px solid rgba(245,158,11,0.20) !important;
+  border-left: 3px solid var(--amber) !important;
+  border-radius: var(--radius-sm) !important;
+}
+[data-testid="stSuccess"] {
+  background: rgba(16,185,129,0.07) !important;
+  border-left: 3px solid var(--emerald) !important;
+  border-radius: var(--radius-sm) !important;
+}
+
+/* ── Home Nav Cards ─────────────────────────────────────────────── */
+.olist-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 32px 26px;
+  text-align: center;
+  transition: transform 0.28s ease, box-shadow 0.28s ease, border-color 0.28s ease;
+  position: relative;
+  overflow: hidden;
+}
+.olist-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(124,58,237,0.04), transparent);
+  pointer-events: none;
+}
+.olist-card:hover {
+  transform: translateY(-5px);
+  border-color: rgba(124,58,237,0.40);
+  box-shadow: 0 16px 48px rgba(124,58,237,0.14);
+}
+.olist-card .oc-icon   { font-size: 48px; margin-bottom: 16px; display: block; }
+.olist-card .oc-title  { color: #FAFAFA; font-size: 18px; font-weight: 700; margin-bottom: 10px; letter-spacing: -0.01em; }
+.olist-card .oc-desc   { color: var(--text2); font-size: 13px; line-height: 1.7; margin-bottom: 16px; }
+.olist-card .oc-chips  { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.olist-card .oc-chip   {
+  background: rgba(124,58,237,0.14); color: var(--violet-l);
+  border: 1px solid rgba(124,58,237,0.25); border-radius: 20px;
+  padding: 3px 12px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+}
+
+/* ── Stat Highlight (inline badge) ─────────────────────────────── */
+.stat-hi { color: var(--violet-l); font-weight: 700; }
+
+/* ── Dividers ───────────────────────────────────────────────────── */
+hr { border-color: var(--border) !important; margin: 12px 0 !important; }
+
+/* ── Animations ─────────────────────────────────────────────────── */
+@keyframes riseIn {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+[data-testid="stMetric"]      { animation: riseIn 0.45s ease both; }
+[data-testid="stPlotlyChart"] { animation: riseIn 0.50s 0.04s ease both; }
+.olist-card                   { animation: riseIn 0.50s ease both; }
+
+[data-testid="column"]:nth-child(1) [data-testid="stMetric"] { animation-delay: 0.00s; }
+[data-testid="column"]:nth-child(2) [data-testid="stMetric"] { animation-delay: 0.06s; }
+[data-testid="column"]:nth-child(3) [data-testid="stMetric"] { animation-delay: 0.12s; }
+[data-testid="column"]:nth-child(4) [data-testid="stMetric"] { animation-delay: 0.18s; }
+[data-testid="column"]:nth-child(5) [data-testid="stMetric"] { animation-delay: 0.24s; }
+[data-testid="column"]:nth-child(6) [data-testid="stMetric"] { animation-delay: 0.30s; }
+
+/* ── Caption / small text ───────────────────────────────────────── */
+[data-testid="stCaptionContainer"], .stCaption { color: var(--text3) !important; }

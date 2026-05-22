@@ -1,123 +1,208 @@
 import streamlit as st
 import pandas as pd
-from components.db import get_delivery_risk, get_review_predictions, get_obt_orders
-from components.charts import make_bar_chart, make_scatter_plot, make_histogram, make_donut_chart
-from components.filters import render_sidebar_header, render_multiselect, render_slider, render_reset_button, render_last_updated
 
 st.set_page_config(page_title="Order Intelligence", page_icon="📦", layout="wide")
 
-import os
-css_path = os.path.join(os.path.dirname(__file__), '..', 'assets', 'style.css')
-if os.path.exists(css_path):
-    with open(css_path) as f:
-        st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
+from components.filters import load_css, sidebar_header, multiselect, range_slider, sidebar_divider, reset_btn, last_updated
+from components.db import get_delivery, get_reviews
+from components.charts import bar, funnel, donut, scatter, hist, line, RISK_COLORS, SAT_COLORS
 
-st.title("📦 Order Intelligence")
+load_css()
 
-with st.spinner("Loading Order Data..."):
-    df_deliv = get_delivery_risk()
-    df_rev = get_review_predictions()
-    df_obt = get_obt_orders()
+with st.spinner("Loading order data…"):
+    df_del = get_delivery()
+    df_rev = get_reviews()
 
-if df_deliv.empty or df_rev.empty or df_obt.empty:
-    st.error("Failed to load one or more order datasets.")
-    st.stop()
+if df_del.empty or df_rev.empty:
+    st.error("Failed to load order data."); st.stop()
 
-last_updated = df_deliv['scored_at'].iloc[0] if 'scored_at' in df_deliv.columns and not df_deliv.empty else "Unknown"
+ts = df_del["scored_at"].iloc[0] if "scored_at" in df_del.columns else "Unknown"
 
-render_sidebar_header()
+MONTH_MAP = {1:"Jan",2:"Feb",3:"Mar",4:"Apr",5:"May",6:"Jun",
+             7:"Jul",8:"Aug",9:"Sep",10:"Oct",11:"Nov",12:"Dec"}
+DOW_MAP   = {0:"Mon",1:"Tue",2:"Wed",3:"Thu",4:"Fri",5:"Sat",6:"Sun"}
 
-tab1, tab2 = st.tabs(["Delivery Risk", "Review Prediction"])
+sidebar_header("Order Intelligence")
+st.title("Order Intelligence")
 
+tab1, tab2 = st.tabs(["🚚  Delivery Risk", "⭐  Review Prediction"])
+
+
+# ════════════════════════════════════════════════════════════════════
+#  TAB 1 — DELIVERY RISK
+# ════════════════════════════════════════════════════════════════════
 with tab1:
-    st.header("Delivery Risk")
-    
-    st.sidebar.markdown("### Delivery Risk Filters")
-    all_tiers = sorted(df_deliv['risk_tier'].unique().tolist())
-    selected_tiers = render_multiselect("Select Risk Tiers", all_tiers)
-    
-    selected_prob = render_slider("Delay Probability Range", 0.0, 1.0)
-    
-    df_deliv_merged = pd.merge(df_deliv, df_obt[['order_id', 'total_order_value']], on='order_id', how='left')
-    
-    df_filtered = df_deliv_merged[
-        (df_deliv_merged['risk_tier'].isin(selected_tiers)) &
-        (df_deliv_merged['delay_probability'] >= selected_prob[0]) &
-        (df_deliv_merged['delay_probability'] <= selected_prob[1])
+    sidebar_divider("Delivery Risk Filters")
+    all_risk = sorted(df_del["risk_tier"].dropna().unique())
+    sel_risk = multiselect("Risk Tiers", all_risk)
+    sel_prob = range_slider("Delay Probability", 0.0, 1.0, step=0.01)
+
+    fd = df_del[
+        df_del["risk_tier"].isin(sel_risk) &
+        df_del["delay_probability"].between(sel_prob[0], sel_prob[1])
     ]
-    
-    high = len(df_filtered[df_filtered['risk_tier'] == 'High'])
-    late_rate = df_filtered['delay_predicted'].mean() * 100 if len(df_filtered) > 0 else 0
-    avg_prob = df_filtered['delay_probability'].mean() if len(df_filtered) > 0 else 0
-    total = len(df_filtered)
-    
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("High Risk Orders", f"{high:,}")
-    c2.metric("Overall Predicted Late Rate", f"{late_rate:.1f}%")
-    c3.metric("Avg Delay Probability", f"{avg_prob:.2f}")
-    c4.metric("Total Orders Scored", f"{total:,}")
-    
-    r1c1, r1c2 = st.columns(2)
-    with r1c1:
-        tier_counts = df_filtered['risk_tier'].value_counts().reset_index()
-        tier_counts.columns = ['risk_tier', 'count']
-        st.plotly_chart(make_bar_chart(tier_counts, 'risk_tier', 'count', "Orders by Risk Tier"), use_container_width=True)
-    with r1c2:
-        st.plotly_chart(make_histogram(df_filtered, 'delay_probability', "Delay Probability Distribution"), use_container_width=True)
-        
-    st.plotly_chart(make_scatter_plot(df_filtered, 'total_order_value', 'delay_probability', 'risk_tier', "Delay Probability vs Total Order Value"), use_container_width=True)
-    
+    nd = len(fd)
+
+    high = (fd["risk_tier"]=="High").sum()
+    med  = (fd["risk_tier"]=="Medium").sum()
+    low  = (fd["risk_tier"]=="Low").sum()
+    d_rate = fd["delay_predicted"].mean()*100 if nd else 0
+
+    c1,c2,c3,c4,c5 = st.columns(5)
+    c1.metric("Total Orders",       f"{nd:,}")
+    c2.metric("🔴 High Risk",       f"{high:,}", f"{high/nd*100:.2f}%" if nd else None)
+    c3.metric("🟡 Medium Risk",     f"{med:,}",  f"{med/nd*100:.1f}%" if nd else None)
+    c4.metric("🟢 Low Risk",        f"{low:,}",  f"{low/nd*100:.1f}%" if nd else None)
+    c5.metric("Predicted Late Rate", f"{d_rate:.1f}%")
+
+    st.markdown("")
+
+    if nd:
+        st.info(
+            f"**{high:,}** orders ({high/nd*100:.2f}%) are flagged High Risk. "
+            "Key drivers: seller late-delivery history, product weight, "
+            "days to approve, and purchase timing.",
+            icon="ℹ️",
+        )
+
+    # Row 1: Funnel | Histogram
+    r1a, r1b = st.columns(2)
+    with r1a:
+        tc = fd["risk_tier"].value_counts().reset_index()
+        tc.columns = ["risk_tier","count"]
+        st.plotly_chart(funnel(tc,"risk_tier","count",
+                               "Orders by Delivery Risk Tier", cmap=RISK_COLORS),
+                        use_container_width=True)
+    with r1b:
+        st.plotly_chart(hist(fd,"delay_probability",
+                             "Delay Probability Distribution", bins=50),
+                        use_container_width=True)
+
+    # Row 2: Category risk bar | Monthly trend
+    r2a, r2b = st.columns(2)
+    with r2a:
+        if "primary_category" in fd.columns:
+            cat_r = (fd.groupby("primary_category")["delay_probability"]
+                     .mean().nlargest(12).reset_index())
+            cat_r.columns = ["Category","Avg Delay Prob"]
+            fig = bar(cat_r,"Avg Delay Prob","Category",
+                      "Top 12 Categories — Avg Delay Probability", h=True)
+            fig.update_layout(height=380)
+            st.plotly_chart(fig, use_container_width=True)
+    with r2b:
+        if "purchase_month" in fd.columns:
+            monthly = (fd.groupby("purchase_month")["delay_probability"]
+                       .mean().reset_index().sort_values("purchase_month"))
+            monthly["Month"] = monthly["purchase_month"].map(MONTH_MAP)
+            st.plotly_chart(
+                line(monthly,"Month","delay_probability",
+                     "Avg Delay Probability by Purchase Month"),
+                use_container_width=True)
+
+    # Row 3: Order value vs delay probability scatter
+    if "total_order_value" in fd.columns:
+        st.plotly_chart(
+            scatter(fd,"total_order_value","delay_probability","risk_tier",
+                    "Order Value vs Delay Probability (5k sample)",
+                    cmap=RISK_COLORS, n=5000),
+            use_container_width=True)
+
     st.subheader("Delivery Risk Data")
-    st.dataframe(df_filtered[['order_id', 'delay_probability', 'delay_predicted', 'risk_tier']], use_container_width=True, hide_index=True)
-    st.download_button("Download CSV", df_filtered.to_csv(index=False), "delivery_risk.csv", "text/csv")
+    show = [c for c in ["order_id","delay_probability","delay_predicted","risk_tier",
+                         "total_order_value","primary_category","purchase_month"]
+            if c in fd.columns]
+    st.dataframe(fd[show], use_container_width=True, hide_index=True)
+    st.download_button("📥 Export CSV", fd.to_csv(index=False),
+                       "delivery_risk.csv","text/csv")
 
 
+# ════════════════════════════════════════════════════════════════════
+#  TAB 2 — REVIEW PREDICTION
+# ════════════════════════════════════════════════════════════════════
 with tab2:
-    st.header("Review Prediction")
-    
-    st.sidebar.markdown("### Review Prediction Filters")
-    all_sat = sorted(df_rev['satisfaction_tier'].unique().tolist())
-    selected_sat = render_multiselect("Select Satisfaction Tiers", all_sat)
-    
-    selected_score = render_slider("Predicted Score Range", 1.0, 5.0)
-    
-    df_rev_merged = pd.merge(df_rev, df_obt[['order_id', 'purchase_month']], on='order_id', how='left')
-    
-    df_rev_filtered = df_rev_merged[
-        (df_rev_merged['satisfaction_tier'].isin(selected_sat)) &
-        (df_rev_merged['predicted_review_score'] >= selected_score[0]) &
-        (df_rev_merged['predicted_review_score'] <= selected_score[1])
+    sidebar_divider("Review Prediction Filters")
+    all_sat = sorted(df_rev["satisfaction_tier"].dropna().unique())
+    sel_sat = multiselect("Satisfaction Tiers", all_sat)
+    sel_sc  = range_slider("Predicted Score", 1.0, 5.0, step=0.5)
+
+    fr = df_rev[
+        df_rev["satisfaction_tier"].isin(sel_sat) &
+        df_rev["predicted_review_score"].between(sel_sc[0], sel_sc[1])
     ]
-    
-    exc = len(df_rev_filtered[df_rev_filtered['satisfaction_tier'] == 'Excellent'])
-    avg_score = df_rev_filtered['predicted_review_score'].mean() if len(df_rev_filtered) > 0 else 0
-    poor = len(df_rev_filtered[df_rev_filtered['satisfaction_tier'].isin(['Poor', 'Very Poor'])])
-    tot_rev = len(df_rev_filtered)
-    
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Excellent Orders Count", f"{exc:,}")
-    c2.metric("Avg Predicted Review Score", f"{avg_score:.2f}")
-    c3.metric("Poor + Very Poor Orders", f"{poor:,}")
-    c4.metric("Total Orders Scored", f"{tot_rev:,}")
-    
-    r1c1, r1c2 = st.columns(2)
-    with r1c1:
-        sat_counts = df_rev_filtered['satisfaction_tier'].value_counts().reset_index()
-        sat_counts.columns = ['satisfaction_tier', 'count']
-        st.plotly_chart(make_donut_chart(sat_counts, 'satisfaction_tier', 'count', "Orders by Satisfaction Tier"), use_container_width=True)
-    with r1c2:
-        st.plotly_chart(make_histogram(df_rev_filtered, 'predicted_review_score', "Predicted Review Score Distribution", nbins=5), use_container_width=True)
-        
-    avg_by_month = df_rev_filtered.groupby('purchase_month')['predicted_review_score'].mean().reset_index()
-    # Map month numbers to names for better UI
-    month_map = {1:'Jan',2:'Feb',3:'Mar',4:'Apr',5:'May',6:'Jun',7:'Jul',8:'Aug',9:'Sep',10:'Oct',11:'Nov',12:'Dec'}
-    avg_by_month['Month Name'] = avg_by_month['purchase_month'].map(month_map)
-    st.plotly_chart(make_bar_chart(avg_by_month, 'Month Name', 'predicted_review_score', "Avg Predicted Score by Purchase Month"), use_container_width=True)
-    
+    nr = len(fr)
+
+    exc  = (fr["satisfaction_tier"]=="Excellent").sum()
+    good = (fr["satisfaction_tier"]=="Good").sum()
+    poor = (fr["satisfaction_tier"].isin(["Poor","Very Poor"])).sum()
+    avg_s = fr["predicted_review_score"].mean() if nr else 0
+
+    c1,c2,c3,c4 = st.columns(4)
+    c1.metric("Total Orders Scored", f"{nr:,}")
+    c2.metric("🟢 Excellent",        f"{exc:,}", f"{exc/nr*100:.1f}%" if nr else None)
+    c3.metric("🔵 Good",             f"{good:,}")
+    c4.metric("🔴 Poor + Very Poor", f"{poor:,}")
+
+    st.markdown("")
+
+    # Row 1: Donut | Monthly trend
+    r1a, r1b = st.columns(2)
+    with r1a:
+        sc = fr["satisfaction_tier"].value_counts().reset_index()
+        sc.columns = ["satisfaction_tier","count"]
+        st.plotly_chart(donut(sc,"satisfaction_tier","count",
+                              "Orders by Satisfaction Tier", cmap=SAT_COLORS),
+                        use_container_width=True)
+    with r1b:
+        if "purchase_month" in fr.columns:
+            mo = (fr.groupby("purchase_month")["predicted_review_score"]
+                  .mean().reset_index().sort_values("purchase_month"))
+            mo["Month"] = mo["purchase_month"].map(MONTH_MAP)
+            st.plotly_chart(
+                line(mo,"Month","predicted_review_score",
+                     "Avg Predicted Score by Purchase Month"),
+                use_container_width=True)
+
+    # Row 2: Days-to-deliver vs review score (key business insight) | Day of week
+    r2a, r2b = st.columns(2)
+    with r2a:
+        if "days_to_deliver" in fr.columns:
+            st.plotly_chart(
+                scatter(fr,"days_to_deliver","predicted_review_score",
+                        "satisfaction_tier",
+                        "Delivery Days vs Review Score (5k sample) — later = worse",
+                        cmap=SAT_COLORS, n=5000),
+                use_container_width=True)
+    with r2b:
+        if "purchase_day_of_week" in fr.columns:
+            dow = (fr.groupby("purchase_day_of_week")["predicted_review_score"]
+                   .mean().reset_index().sort_values("purchase_day_of_week"))
+            dow["Day"] = dow["purchase_day_of_week"].map(DOW_MAP)
+            st.plotly_chart(
+                bar(dow,"Day","predicted_review_score",
+                    "Avg Predicted Score by Day of Week"),
+                use_container_width=True)
+
+    # Row 3: satisfaction tier bar
+    if "c_scheduled_vs_actual_days" in fr.columns:
+        tier_var = (
+            fr.groupby("satisfaction_tier")["c_scheduled_vs_actual_days"]
+            .mean().reset_index()
+        )
+        tier_var.columns = ["satisfaction_tier","Avg Schedule Variance (days)"]
+        st.plotly_chart(
+            bar(tier_var,"satisfaction_tier","Avg Schedule Variance (days)",
+                "Avg Delivery Schedule Variance by Satisfaction Tier",
+                cmap=SAT_COLORS),
+            use_container_width=True)
+
     st.subheader("Review Prediction Data")
-    st.dataframe(df_rev_filtered[['order_id', 'predicted_review_score', 'satisfaction_tier']], use_container_width=True, hide_index=True)
-    st.download_button("Download CSV", df_rev_filtered.to_csv(index=False), "review_predictions.csv", "text/csv")
+    show = [c for c in ["order_id","predicted_review_score","satisfaction_tier",
+                         "days_to_deliver","is_late","total_order_value","purchase_month"]
+            if c in fr.columns]
+    st.dataframe(fr[show], use_container_width=True, hide_index=True)
+    st.download_button("📥 Export CSV", fr.to_csv(index=False),
+                       "review_predictions.csv","text/csv")
 
 
-render_reset_button()
-render_last_updated(last_updated)
+reset_btn()
+last_updated(ts)
