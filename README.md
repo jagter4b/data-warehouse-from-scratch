@@ -79,6 +79,12 @@ Data is modeled into a **Kimball Galaxy Schema**:
 - **7 Dimensions:** Date, Customer, Product, Seller (shared), Payment Type, Order Status, Marketing Channel.
 - **5 Facts & 1 Outrigger:** Order Items, Payments, Reviews, Order Lifecycle (Accumulating Snapshot), Marketing Funnel.
 
+<div align="center">
+  <img src="./docs/dwh_schema.png" alt="Kimball Galaxy Schema" width="100%">
+  <br>
+  <em>Kimball Galaxy Schema detailing the dimensions and facts.</em>
+</div>
+
 ### 📊 One Big Tables (Feature Stores)
 The Gold schema is flattened into 3 ML-ready feature stores:
 - **`obt_customers`** (96,097 rows): Spends, recency, frequency, satisfaction.
