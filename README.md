@@ -199,5 +199,4 @@ Each pipeline layer contains an in-depth README covering logic and schemas:
 
 <div align="center">
 <br>
-Built with ❤️ using Python, SQL Server, XGBoost, and Streamlit
 </div>
