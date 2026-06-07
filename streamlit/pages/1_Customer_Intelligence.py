@@ -73,9 +73,9 @@ churn_pct   = high_churn / total_cust * 100 if total_cust else 0
 k1, k2, k3, k4, k5 = st.columns(5)
 k1.metric("👥 Unique Customers",   f"{total_cust:,}")
 k2.metric("📅 Avg Recency",        f"{avg_recency:.0f} days" if avg_recency else "N/A")
-k3.metric("🔁 Avg Orders/Customer",f"{avg_freq:.2f}" if avg_freq else "N/A")
+k3.metric("🔁 Avg Orders/Customer",f"{avg_freq:.0f}" if avg_freq else "N/A")
 k4.metric("💰 Avg Lifetime Value", f"R${avg_mon:.0f}")
-k5.metric("⚠️ High Churn Risk",    f"{high_churn:,} ({churn_pct:.1f}%)")
+k5.metric("⚠️ High Churn Risk",    f"{high_churn:,} ({churn_pct:.0f}%)")
 
 st.markdown("<div class='gradient-divider'></div>", unsafe_allow_html=True)
 

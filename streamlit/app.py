@@ -76,10 +76,10 @@ total_customers = delivered["customer_unique_id"].nunique()
 k1, k2, k3, k4, k5, k6 = st.columns(6)
 metrics = [
     (k1, "Total Orders",     f"{total_orders:,}",           "📦"),
-    (k2, "Total Revenue",    f"R${total_revenue/1e6:.2f}M", "💰"),
+    (k2, "Total Revenue",    f"R${total_revenue/1e6:.0f}M", "💰"),
     (k3, "Avg Order Value",  f"R${avg_order_val:.0f}",      "🛒"),
-    (k4, "On-Time Rate",     f"{on_time_pct:.1f}%",         "🚚"),
-    (k5, "Avg Review Score", f"{avg_review:.2f} ⭐",         "⭐"),
+    (k4, "On-Time Rate",     f"{on_time_pct:.0f}%",         "🚚"),
+    (k5, "Avg Review Score", f"{avg_review:.0f} ⭐",         "⭐"),
     (k6, "Unique Customers", f"{total_customers:,}",        "👥"),
 ]
 for col, label, value, icon in metrics:

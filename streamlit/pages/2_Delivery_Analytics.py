@@ -65,9 +65,9 @@ high_risk       = (df["delay_risk_tier"] == "High").sum() if "delay_risk_tier" i
 avg_risk_score  = df["delay_risk_score"].mean() if "delay_risk_score" in df.columns else 0
 
 k1, k2, k3, k4, k5 = st.columns(5)
-k1.metric("✅ On-Time Delivery",   f"{on_time_pct:.1f}%")
-k2.metric("📅 Avg Delivery Days",  f"{avg_deliver:.1f} days")
-k3.metric("⏱️ Avg Variance",       f"{avg_variance:.1f} days",
+k1.metric("✅ On-Time Delivery",   f"{on_time_pct:.0f}%")
+k2.metric("📅 Avg Delivery Days",  f"{avg_deliver:.0f} days")
+k3.metric("⏱️ Avg Variance",       f"{avg_variance:.0f} days",
           delta=f"{'early' if avg_variance < 0 else 'late'}")
 k4.metric("❌ Late Orders",         f"{late_orders:,}")
 k5.metric("🔴 High Delay Risk",     f"{high_risk:,}")
