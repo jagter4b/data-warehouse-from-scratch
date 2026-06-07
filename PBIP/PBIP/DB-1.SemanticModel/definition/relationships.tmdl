@@ -1,0 +1,209 @@
+relationship c11b4df3-3b9d-43c5-bb66-f5cdf89e3088
+	joinOnDateBehavior: datePartOnly
+	fromColumn: 'gold dim_customer'.load_timestamp
+	toColumn: LocalDateTable_663abac2-ce7a-494e-9e23-abf314fd9bc9.Date
+
+relationship af10eb94-89b4-47ef-8cd4-396d945083fd
+	joinOnDateBehavior: datePartOnly
+	fromColumn: 'gold dim_marketing_channel'.load_timestamp
+	toColumn: LocalDateTable_79205058-7dfc-4ab7-8297-601fb41a307c.Date
+
+relationship f51df52c-fec8-403b-8733-61eaa0da2ee7
+	joinOnDateBehavior: datePartOnly
+	fromColumn: 'gold dim_order_status'.load_timestamp
+	toColumn: LocalDateTable_1d5f73d0-de44-443b-b5f6-0cd7457dfb2e.Date
+
+relationship fdffe3c6-0042-49c2-8d4a-8074ea069a81
+	joinOnDateBehavior: datePartOnly
+	fromColumn: 'gold dim_payment_type'.load_timestamp
+	toColumn: LocalDateTable_cf5f6cb9-dcc8-49d0-abf5-3f24de28132a.Date
+
+relationship cc3cd973-1ad6-4add-95ca-2f3449cea539
+	joinOnDateBehavior: datePartOnly
+	fromColumn: 'gold dim_product'.load_timestamp
+	toColumn: LocalDateTable_d5c5e637-d168-4219-a21d-ffe1a30d74cb.Date
+
+relationship ba40d469-10df-46a5-a2cc-2184cb702f68
+	joinOnDateBehavior: datePartOnly
+	fromColumn: 'gold dim_seller'.load_timestamp
+	toColumn: LocalDateTable_771207c7-380a-4369-8edd-225a41430591.Date
+
+relationship 771bf322-3244-425e-8655-a998bab2c4b8
+	joinOnDateBehavior: datePartOnly
+	fromColumn: 'gold fact_marketing_funnel'.load_timestamp
+	toColumn: LocalDateTable_56201c40-226c-4a63-bfdc-980a759d6bee.Date
+
+relationship aff36da5-20ef-47ef-b7fb-4e37bb0955b7
+	joinOnDateBehavior: datePartOnly
+	fromColumn: 'gold fact_order_items'.load_timestamp
+	toColumn: LocalDateTable_f0e0f1e3-ada3-4ed2-b6e8-21af9c94e564.Date
+
+relationship eb92e8ab-3d03-4db3-9de5-231045842e2c
+	joinOnDateBehavior: datePartOnly
+	fromColumn: 'gold fact_order_life_cycle'.load_timestamp
+	toColumn: LocalDateTable_137b780e-f45e-49e4-b2c0-8b5f241f9115.Date
+
+relationship ade9bd53-c402-4863-981e-63e6a483b038
+	joinOnDateBehavior: datePartOnly
+	fromColumn: 'gold fact_payments'.load_timestamp
+	toColumn: LocalDateTable_81547f80-15bd-4209-b7a3-363f9f651308.Date
+
+relationship 1e9112f6-e2ac-4107-99d3-f452aaefb6db
+	joinOnDateBehavior: datePartOnly
+	fromColumn: 'gold fact_reviews'.load_timestamp
+	toColumn: LocalDateTable_68461682-ca64-4922-baae-f0309d7c116f.Date
+
+relationship 4e3a633a-00eb-414a-b9db-b11a477f4f16
+	joinOnDateBehavior: datePartOnly
+	fromColumn: 'gold review_comments'.load_timestamp
+	toColumn: LocalDateTable_f7fab00c-a1e7-4327-a27d-2ff904cf6e7d.Date
+
+relationship 990b1764-0880-4052-8905-97ccbbbf7964
+	fromColumn: 'gold fact_marketing_funnel'.first_contact_date_key
+	toColumn: 'gold dim_date'.date_key
+
+	annotation PBI_IsFromSource = FS
+
+relationship d622c3d0-f283-47f9-9007-b1bad496963c
+	isActive: false
+	fromColumn: 'gold fact_marketing_funnel'.won_date_key
+	toColumn: 'gold dim_date'.date_key
+
+	annotation PBI_IsFromSource = FS
+
+relationship 436e18c9-7db6-4894-9174-b19dd22a9c03
+	crossFilteringBehavior: bothDirections
+	fromCardinality: one
+	fromColumn: 'gold fact_marketing_funnel'.mql_channel_sk
+	toColumn: 'gold dim_marketing_channel'.mql_channel_sk
+
+	annotation PBI_IsFromSource = FS
+
+relationship c6a486dc-3fd7-48be-a74d-77c812a9998b
+	fromColumn: 'gold fact_marketing_funnel'.seller_sk
+	toColumn: 'gold dim_seller'.seller_sk
+
+	annotation PBI_IsFromSource = FS
+
+relationship a3c8fc30-b76f-4a16-9a63-c85dcf65af6b
+	fromColumn: 'gold fact_order_items'.customer_sk
+	toColumn: 'gold dim_customer'.customer_sk
+
+	annotation PBI_IsFromSource = FS
+
+relationship 73ed8020-f35e-44a1-a61c-54e523a85315
+	fromColumn: 'gold fact_order_items'.purchase_date_key
+	toColumn: 'gold dim_date'.date_key
+
+	annotation PBI_IsFromSource = FS
+
+relationship 5dda19b3-b06a-4816-8f85-5b4260f04da7
+	isActive: false
+	fromColumn: 'gold fact_order_items'.shipping_limit_date_key
+	toColumn: 'gold dim_date'.date_key
+
+	annotation PBI_IsFromSource = FS
+
+relationship 50bb6d02-0b6f-45ac-a357-50b926bbd9ff
+	fromColumn: 'gold fact_order_items'.product_sk
+	toColumn: 'gold dim_product'.product_sk
+
+	annotation PBI_IsFromSource = FS
+
+relationship 04aebb38-3081-44a0-89f5-910c913b23ab
+	fromColumn: 'gold fact_order_items'.seller_sk
+	toColumn: 'gold dim_seller'.seller_sk
+
+	annotation PBI_IsFromSource = FS
+
+relationship ca3a2445-bb0c-4e23-8ce7-03990ce17319
+	fromColumn: 'gold fact_order_life_cycle'.customer_sk
+	toColumn: 'gold dim_customer'.customer_sk
+
+	annotation PBI_IsFromSource = FS
+
+relationship 623410b4-5d81-494f-b26b-9b569c4d36ab
+	fromColumn: 'gold fact_order_life_cycle'.approval_date_key
+	toColumn: 'gold dim_date'.date_key
+
+	annotation PBI_IsFromSource = FS
+
+relationship 62c13a16-98ca-4208-bff1-50bc676a8371
+	isActive: false
+	fromColumn: 'gold fact_order_life_cycle'.carrier_date_key
+	toColumn: 'gold dim_date'.date_key
+
+	annotation PBI_IsFromSource = FS
+
+relationship 5a5c8532-c208-4da1-8a46-1b70afeded25
+	isActive: false
+	fromColumn: 'gold fact_order_life_cycle'.delivery_date_key
+	toColumn: 'gold dim_date'.date_key
+
+	annotation PBI_IsFromSource = FS
+
+relationship ce1bd3f0-a8af-4a55-89c3-730ceae9570b
+	isActive: false
+	fromColumn: 'gold fact_order_life_cycle'.estimated_delivery_date_key
+	toColumn: 'gold dim_date'.date_key
+
+	annotation PBI_IsFromSource = FS
+
+relationship 77d3fab0-be40-4190-9677-fb74d34cce1c
+	isActive: false
+	fromColumn: 'gold fact_order_life_cycle'.purchase_date_key
+	toColumn: 'gold dim_date'.date_key
+
+	annotation PBI_IsFromSource = FS
+
+relationship 896c2821-aa19-4f85-aa81-3b79a9f397d3
+	fromColumn: 'gold fact_order_life_cycle'.order_status_sk
+	toColumn: 'gold dim_order_status'.order_status_sk
+
+	annotation PBI_IsFromSource = FS
+
+relationship 53823efb-9ee0-4bfe-bd3c-096131d4dddc
+	fromColumn: 'gold fact_payments'.customer_sk
+	toColumn: 'gold dim_customer'.customer_sk
+
+	annotation PBI_IsFromSource = FS
+
+relationship 3fb24623-7b45-485e-922e-636df8d23b56
+	fromColumn: 'gold fact_payments'.purchase_date_key
+	toColumn: 'gold dim_date'.date_key
+
+	annotation PBI_IsFromSource = FS
+
+relationship 83f00c9e-c296-41db-8d9c-2e4e87c27149
+	fromColumn: 'gold fact_payments'.payment_type_sk
+	toColumn: 'gold dim_payment_type'.payment_type_sk
+
+	annotation PBI_IsFromSource = FS
+
+relationship 3cad03ca-6c26-4261-ba39-d1085f888e73
+	fromColumn: 'gold fact_reviews'.customer_sk
+	toColumn: 'gold dim_customer'.customer_sk
+
+	annotation PBI_IsFromSource = FS
+
+relationship 7e55b6c8-a778-4604-bc1b-ab98a8d9b301
+	fromColumn: 'gold fact_reviews'.review_answer_date_key
+	toColumn: 'gold dim_date'.date_key
+
+	annotation PBI_IsFromSource = FS
+
+relationship e5dc5ab7-385a-45cb-9e73-9bdf744f82b9
+	isActive: false
+	fromColumn: 'gold fact_reviews'.review_creation_date_key
+	toColumn: 'gold dim_date'.date_key
+
+	annotation PBI_IsFromSource = FS
+
+relationship 55a80725-0923-4641-a1ba-c93899172b9c
+	crossFilteringBehavior: bothDirections
+	fromCardinality: one
+	fromColumn: 'gold review_comments'.review_sk
+	toColumn: 'gold fact_reviews'.review_sk
+
+	annotation PBI_IsFromSource = FS
+

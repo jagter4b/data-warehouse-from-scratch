@@ -1,0 +1,23 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.9.0/schema.json",
+  "name": "e2772162e9544c4b9c88",
+  "position": {
+    "x": 1794.0764774044032,
+    "y": 167.70027037466204,
+    "z": 2000,
+    "height": 41.134028582464275,
+    "width": 41.134028582464275,
+    "tabOrder": 8000
+  },
+  "visual": {
+    "visualType": "cardVisual",
+    "query": {
+      "queryState": {},
+      "sortDefinition": {
+        "isDefaultSort": true
+      }
+    },
+    "drillFilterOtherVisuals": true
+  },
+  "isHidden": true
+}

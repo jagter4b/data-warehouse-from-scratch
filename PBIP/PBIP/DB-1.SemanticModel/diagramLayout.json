@@ -1,0 +1,204 @@
+{
+  "version": "1.1.0",
+  "diagrams": [
+    {
+      "ordinal": 0,
+      "scrollPosition": {
+        "x": 224.35897827148438,
+        "y": 0
+      },
+      "nodes": [
+        {
+          "location": {
+            "x": 435.16055053916358,
+            "y": 850.453439406645
+          },
+          "nodeIndex": "gold dim_customer",
+          "nodeLineageTag": "1eebe37f-ce8a-48b6-99fb-b5b3182690fa",
+          "size": {
+            "height": 248,
+            "width": 234
+          },
+          "zIndex": 2
+        },
+        {
+          "location": {
+            "x": 887.78847112827179,
+            "y": 657.44579353721906
+          },
+          "nodeIndex": "gold dim_date",
+          "nodeLineageTag": "cecf0cdf-9a2d-4672-a251-b191d038eaa3",
+          "size": {
+            "height": 300,
+            "width": 234
+          },
+          "zIndex": 3
+        },
+        {
+          "location": {
+            "x": 1687.53628874387,
+            "y": 657.61482880795677
+          },
+          "nodeIndex": "gold dim_marketing_channel",
+          "nodeLineageTag": "9ee0b3ff-bf64-4fc8-935a-f8f797038681",
+          "size": {
+            "height": 300,
+            "width": 234
+          },
+          "zIndex": 4
+        },
+        {
+          "location": {
+            "x": 139.6472812909505,
+            "y": 239.53906705314239
+          },
+          "nodeIndex": "gold dim_order_status",
+          "nodeLineageTag": "6f255987-f998-4814-9db0-12dc214db8ec",
+          "size": {
+            "height": 176,
+            "width": 234
+          },
+          "zIndex": 5
+        },
+        {
+          "location": {
+            "x": 720.53888437713317,
+            "y": 1008.29448455479
+          },
+          "nodeIndex": "gold dim_payment_type",
+          "nodeLineageTag": "b4d02ba7-0b84-49f7-bce3-7fedceecea1b",
+          "size": {
+            "height": 176,
+            "width": 234
+          },
+          "zIndex": 6
+        },
+        {
+          "location": {
+            "x": 526.7841149264159,
+            "y": 90
+          },
+          "nodeIndex": "gold dim_product",
+          "nodeLineageTag": "b971307d-0722-431b-94e6-79b9e169bd99",
+          "size": {
+            "height": 300,
+            "width": 234
+          },
+          "zIndex": 14
+        },
+        {
+          "location": {
+            "x": 1520.6825070304651,
+            "y": 356.06544289185865
+          },
+          "nodeIndex": "gold dim_seller",
+          "nodeLineageTag": "118f1f46-ef25-4617-a146-4f0580c0f792",
+          "size": {
+            "height": 248,
+            "width": 234
+          },
+          "zIndex": 7
+        },
+        {
+          "location": {
+            "x": 1346.1897513018744,
+            "y": 657.499847247871
+          },
+          "nodeIndex": "gold fact_marketing_funnel",
+          "nodeLineageTag": "31f30a23-d464-4442-b185-d42c0dff038f",
+          "size": {
+            "height": 300,
+            "width": 234
+          },
+          "zIndex": 8
+        },
+        {
+          "location": {
+            "x": 1120.4575451150763,
+            "y": 303.76258167452818
+          },
+          "nodeIndex": "gold fact_order_items",
+          "nodeLineageTag": "cd5f2d3e-0c22-437e-937f-f5319f3855b2",
+          "size": {
+            "height": 300,
+            "width": 234
+          },
+          "zIndex": 9
+        },
+        {
+          "location": {
+            "x": 337.04015951930455,
+            "y": 468.6571548336974
+          },
+          "nodeIndex": "gold fact_order_life_cycle",
+          "nodeLineageTag": "03abf172-e547-4dec-9150-705303dbada4",
+          "size": {
+            "height": 300,
+            "width": 234
+          },
+          "zIndex": 10
+        },
+        {
+          "location": {
+            "x": 50,
+            "y": 781.80720748854367
+          },
+          "nodeIndex": "gold fact_payments",
+          "nodeLineageTag": "19e9c478-3b9d-412f-8775-f04c31951440",
+          "size": {
+            "height": 300,
+            "width": 234
+          },
+          "zIndex": 11
+        },
+        {
+          "location": {
+            "x": 1637.0595870022803,
+            "y": 1046.9281570193311
+          },
+          "nodeIndex": "gold fact_reviews",
+          "nodeLineageTag": "90cc205f-5e36-4402-bb69-673b483c741f",
+          "size": {
+            "height": 296,
+            "width": 234
+          },
+          "zIndex": 12
+        },
+        {
+          "location": {
+            "x": 1125.5152238328287,
+            "y": 1010.8443691332955
+          },
+          "nodeIndex": "gold review_comments",
+          "nodeLineageTag": "96a9b154-99a6-4415-9bf0-28bcc38d5d51",
+          "size": {
+            "height": 176,
+            "width": 234
+          },
+          "zIndex": 13
+        },
+        {
+          "location": {
+            "x": 1891.53628874387,
+            "y": 96.464078509665569
+          },
+          "nodeIndex": "MyMeasures",
+          "nodeLineageTag": "52ec6ae4-1967-4d57-a79a-f9c8894c3d25",
+          "size": {
+            "height": 200,
+            "width": 234
+          },
+          "zIndex": 1
+        }
+      ],
+      "name": "All tables",
+      "zoomValue": 40,
+      "pinKeyFieldsToTop": false,
+      "showExtraHeaderInfo": false,
+      "hideKeyFieldsWhenCollapsed": false,
+      "tablesLocked": false
+    }
+  ],
+  "selectedDiagram": "All tables",
+  "defaultDiagram": "All tables"
+}

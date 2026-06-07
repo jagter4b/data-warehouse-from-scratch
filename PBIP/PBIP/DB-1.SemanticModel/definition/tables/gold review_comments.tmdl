@@ -1,0 +1,53 @@
+table 'gold review_comments'
+	lineageTag: 96a9b154-99a6-4415-9bf0-28bcc38d5d51
+
+	column review_sk
+		dataType: int64
+		formatString: 0
+		lineageTag: 0ffddc61-9515-444b-b91c-8425430ed6f8
+		summarizeBy: none
+		sourceColumn: review_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column review_comment_title
+		dataType: string
+		lineageTag: 83a64eba-6578-4fcc-b09a-6eb21a49bb72
+		summarizeBy: none
+		sourceColumn: review_comment_title
+
+		annotation SummarizationSetBy = Automatic
+
+	column review_comment_message
+		dataType: string
+		lineageTag: 30be09a4-3f82-41dc-b8c6-d0637085d3bf
+		summarizeBy: none
+		sourceColumn: review_comment_message
+
+		annotation SummarizationSetBy = Automatic
+
+	column load_timestamp
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 07c1efac-dbdb-4973-a29a-2d8ee6cb3be9
+		summarizeBy: none
+		sourceColumn: load_timestamp
+
+		variation Variation
+			isDefault
+			relationship: 4e3a633a-00eb-414a-b9db-b11a477f4f16
+			defaultHierarchy: LocalDateTable_f7fab00c-a1e7-4327-a27d-2ff904cf6e7d.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'gold review_comments' = m
+		mode: import
+		source =
+				let
+				    Source = Sql.Database("LAPTOP-MSLO05E2\MSSQLSERVER2022", "BI_AI"),
+				    gold_review_comments = Source{[Schema="gold",Item="review_comments"]}[Data]
+				in
+				    gold_review_comments
+
+	annotation PBI_ResultType = Table
+

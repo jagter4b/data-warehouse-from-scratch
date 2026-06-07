@@ -1,0 +1,210 @@
+table 'gold dim_date'
+	lineageTag: cecf0cdf-9a2d-4672-a251-b191d038eaa3
+	dataCategory: Time
+
+	column date_key
+		dataType: int64
+		formatString: 0
+		lineageTag: 8effe714-d358-42ae-88e6-b0867469b8ab
+		summarizeBy: none
+		sourceColumn: date_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column full_date
+		dataType: dateTime
+		isKey
+		formatString: Long Date
+		lineageTag: e18ae756-6926-41c2-9bd9-cb21f2918881
+		summarizeBy: none
+		sourceColumn: full_date
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column day_of_week_num
+		dataType: int64
+		formatString: 0
+		lineageTag: ef2afca8-3739-483e-8adc-7e3afad06b85
+		summarizeBy: sum
+		sourceColumn: day_of_week_num
+
+		annotation SummarizationSetBy = Automatic
+
+	column day_of_week_name
+		dataType: string
+		lineageTag: ef8578b8-1b77-471d-ba87-6aa853efe185
+		summarizeBy: none
+		sourceColumn: day_of_week_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column day_of_week_name_short
+		dataType: string
+		lineageTag: c616f369-e710-4cca-adc7-43cf8c79c359
+		summarizeBy: none
+		sourceColumn: day_of_week_name_short
+
+		annotation SummarizationSetBy = Automatic
+
+	column day_of_month
+		dataType: int64
+		formatString: 0
+		lineageTag: 6b743560-d497-4e13-b6b2-9adcc6c0073c
+		summarizeBy: sum
+		sourceColumn: day_of_month
+
+		annotation SummarizationSetBy = Automatic
+
+	column day_of_year
+		dataType: int64
+		formatString: 0
+		lineageTag: 5a41ad16-d2b6-4f6d-878b-40a30d8fc96a
+		summarizeBy: sum
+		sourceColumn: day_of_year
+
+		annotation SummarizationSetBy = Automatic
+
+	column week_of_year
+		dataType: int64
+		formatString: 0
+		lineageTag: 01155343-a897-4e39-b793-583641896830
+		summarizeBy: none
+		sourceColumn: week_of_year
+
+		annotation SummarizationSetBy = User
+
+	column month_num
+		dataType: int64
+		formatString: 0
+		lineageTag: 2e78572e-f3b0-4b9f-8700-dcda4453c2b0
+		summarizeBy: none
+		sourceColumn: month_num
+
+		annotation SummarizationSetBy = User
+
+	column month_name
+		dataType: string
+		lineageTag: 25294ccb-44f3-4284-ab4b-10d980e8889f
+		summarizeBy: none
+		sourceColumn: month_name
+		sortByColumn: month_num
+
+		changedProperty = SortByColumn
+
+		annotation SummarizationSetBy = Automatic
+
+	column month_name_short
+		dataType: string
+		lineageTag: 364d4994-1f6f-4584-9519-57296d1be020
+		summarizeBy: none
+		sourceColumn: month_name_short
+
+		annotation SummarizationSetBy = Automatic
+
+	column quarter_num
+		dataType: int64
+		formatString: 0
+		lineageTag: 4b4a13b0-d7a5-46a7-be24-9c3f50c17be0
+		summarizeBy: none
+		sourceColumn: quarter_num
+
+		annotation SummarizationSetBy = User
+
+	column quarter_name
+		dataType: string
+		lineageTag: ac70dddd-1acc-4a5a-97e8-f38b308e0c43
+		summarizeBy: none
+		sourceColumn: quarter_name
+		sortByColumn: quarter_num
+
+		changedProperty = SortByColumn
+
+		annotation SummarizationSetBy = Automatic
+
+	column year
+		dataType: int64
+		formatString: 0
+		lineageTag: c83781af-9d84-4080-905d-fa21581a1d4d
+		summarizeBy: none
+		sourceColumn: year
+
+		annotation SummarizationSetBy = User
+
+	column year_month
+		dataType: string
+		lineageTag: 6be31e77-b508-474d-9d27-81f9740ec84e
+		summarizeBy: none
+		sourceColumn: year_month
+		sortByColumn: year_month_sort
+
+		changedProperty = SortByColumn
+
+		annotation SummarizationSetBy = Automatic
+
+	column is_weekend
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: ec060f2a-035b-45c9-8bd7-6b1ecb8e577f
+		summarizeBy: none
+		sourceColumn: is_weekend
+
+		annotation SummarizationSetBy = Automatic
+
+	column is_holiday
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: d672f9b3-3e2e-4c35-bec6-bc4a997552f1
+		summarizeBy: none
+		sourceColumn: is_holiday
+
+		annotation SummarizationSetBy = Automatic
+
+	column year_month_sort =
+			
+			YEAR('gold dim_date'[full_date]) * 100
+			+
+			MONTH('gold dim_date'[full_date])
+		formatString: 0
+		lineageTag: 7693382a-6bc3-4dd1-8d38-7a938d7a011a
+		summarizeBy: sum
+
+		annotation SummarizationSetBy = Automatic
+
+	hierarchy 'Date Hierarchy'
+		lineageTag: d48c3541-bd57-4f71-9759-320ff221f4f8
+
+		level year
+			lineageTag: 8016cad7-4c63-4f11-86d1-66bfe6633f43
+			column: year
+
+		level quarter_name
+			lineageTag: 2246a0db-2db5-4ed4-92a2-e90d6739b17c
+			column: quarter_name
+
+		level month_name
+			lineageTag: 8758cdc5-5b2d-4337-ac20-8de64b45e592
+			column: month_name
+
+		level full_date
+			lineageTag: 08bcd51d-c6da-4178-b049-57238b08569f
+			column: full_date
+
+	partition 'gold dim_date' = m
+		mode: import
+		source =
+				let
+				    Source = Sql.Database("LAPTOP-MSLO05E2\MSSQLSERVER2022", "BI_AI"),
+				    gold_dim_date = Source{[Schema="gold",Item="dim_date"]}[Data],
+				    #"Sorted Rows" = Table.Sort(gold_dim_date,{{"full_date", Order.Ascending}}),
+				    #"Filtered Rows" = Table.SelectRows(#"Sorted Rows", each ([full_date] <> #date(1900, 1, 1))),
+				    #"Sorted Rows1" = Table.Sort(#"Filtered Rows",{{"full_date", Order.Descending}}),
+				    #"Filtered Rows1" = Table.SelectRows(#"Sorted Rows1", each ([full_date] <> #date(9999, 12, 31)))
+				in
+				    #"Filtered Rows1"
+
+	annotation PBI_ResultType = Table
+
+	annotation PBI_NavigationStepName = Navigation
+

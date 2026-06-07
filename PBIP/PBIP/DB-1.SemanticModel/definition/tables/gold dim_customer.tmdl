@@ -1,0 +1,117 @@
+table 'gold dim_customer'
+	lineageTag: 1eebe37f-ce8a-48b6-99fb-b5b3182690fa
+
+	column customer_sk
+		dataType: int64
+		formatString: 0
+		lineageTag: 76f0028b-e519-43ef-89db-fdc8116478c9
+		summarizeBy: none
+		sourceColumn: customer_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column customer_unique_id_bk
+		dataType: string
+		lineageTag: 3e21a609-fdf7-41d7-a8a6-8327c1c1e0c9
+		summarizeBy: none
+		sourceColumn: customer_unique_id_bk
+
+		annotation SummarizationSetBy = Automatic
+
+	column customer_zip_code_prefix
+		dataType: string
+		lineageTag: 7b13e327-46cd-46db-8d47-fe482d145302
+		summarizeBy: none
+		sourceColumn: customer_zip_code_prefix
+
+		annotation SummarizationSetBy = Automatic
+
+	column customer_city
+		dataType: string
+		lineageTag: 65650cc8-083c-4f92-a0b8-5efc36a65c98
+		dataCategory: City
+		summarizeBy: none
+		sourceColumn: customer_city
+
+		annotation SummarizationSetBy = Automatic
+
+	column customer_state
+		dataType: string
+		lineageTag: 6c41cbf7-196a-447a-a943-486a8d19b046
+		dataCategory: StateOrProvince
+		summarizeBy: none
+		sourceColumn: customer_state
+
+		annotation SummarizationSetBy = Automatic
+
+	column load_timestamp
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 052c52d8-e249-4305-8ffc-c2f96618868e
+		summarizeBy: none
+		sourceColumn: load_timestamp
+
+		variation Variation
+			isDefault
+			relationship: c11b4df3-3b9d-43c5-bb66-f5cdf89e3088
+			defaultHierarchy: LocalDateTable_663abac2-ce7a-494e-9e23-abf314fd9bc9.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+	column source_system
+		dataType: string
+		lineageTag: f6cbc670-0153-4472-9837-9be2e5919cf6
+		summarizeBy: none
+		sourceColumn: source_system
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Customer State Brazil' =
+			
+			SWITCH(
+			    'gold dim_customer'[customer_state],
+			    "SP","São Paulo, Brazil",
+			    "RJ","Rio de Janeiro, Brazil",
+			    "MG","Minas Gerais, Brazil",
+			    "PR","Paraná, Brazil",
+			    "SC","Santa Catarina, Brazil",
+			    "RS","Rio Grande do Sul, Brazil",
+			    "BA","Bahia, Brazil",
+			    "GO","Goiás, Brazil",
+			    "DF","Distrito Federal, Brazil",
+			    "ES","Espírito Santo, Brazil",
+			    "PE","Pernambuco, Brazil",
+			    "CE","Ceará, Brazil",
+			    "PA","Pará, Brazil",
+			    "MT","Mato Grosso, Brazil",
+			    "MS","Mato Grosso do Sul, Brazil",
+			    "AM","Amazonas, Brazil",
+			    "MA","Maranhão, Brazil",
+			    "PB","Paraíba, Brazil",
+			    "RN","Rio Grande do Norte, Brazil",
+			    "AL","Alagoas, Brazil",
+			    "PI","Piauí, Brazil",
+			    "SE","Sergipe, Brazil",
+			    "RO","Rondônia, Brazil",
+			    "TO","Tocantins, Brazil",
+			    "AC","Acre, Brazil",
+			    "AP","Amapá, Brazil",
+			    "RR","Roraima, Brazil"
+			)
+		lineageTag: 21543b09-27b0-4081-b401-c3da91e50556
+		dataCategory: StateOrProvince
+		summarizeBy: none
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'gold dim_customer' = m
+		mode: import
+		source =
+				let
+				    Source = Sql.Database("LAPTOP-MSLO05E2\MSSQLSERVER2022", "BI_AI"),
+				    gold_dim_customer = Source{[Schema="gold",Item="dim_customer"]}[Data]
+				in
+				    gold_dim_customer
+
+	annotation PBI_ResultType = Table
+

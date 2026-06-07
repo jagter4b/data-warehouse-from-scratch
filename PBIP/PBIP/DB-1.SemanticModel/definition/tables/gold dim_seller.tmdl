@@ -1,0 +1,77 @@
+table 'gold dim_seller'
+	lineageTag: 118f1f46-ef25-4617-a146-4f0580c0f792
+
+	column seller_sk
+		dataType: int64
+		formatString: 0
+		lineageTag: be4950a6-415e-4e24-a110-c6aeba0e9ce4
+		summarizeBy: none
+		sourceColumn: seller_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column seller_id_bk
+		dataType: string
+		lineageTag: 6d670f01-7dd6-4ac2-9368-59ec6cace6db
+		summarizeBy: none
+		sourceColumn: seller_id_bk
+
+		annotation SummarizationSetBy = Automatic
+
+	column seller_zip_code_prefix
+		dataType: string
+		lineageTag: 954f4851-395a-47c5-a683-f0f7f0e9ede7
+		summarizeBy: none
+		sourceColumn: seller_zip_code_prefix
+
+		annotation SummarizationSetBy = Automatic
+
+	column seller_city
+		dataType: string
+		lineageTag: b72f62cb-715c-4486-bff1-49ce74daa05e
+		summarizeBy: none
+		sourceColumn: seller_city
+
+		annotation SummarizationSetBy = Automatic
+
+	column seller_state
+		dataType: string
+		lineageTag: 0b9b4efd-2c12-4fce-afaa-c32830592c50
+		summarizeBy: none
+		sourceColumn: seller_state
+
+		annotation SummarizationSetBy = Automatic
+
+	column load_timestamp
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 53d80094-67f0-484b-8541-e91f020f6e64
+		summarizeBy: none
+		sourceColumn: load_timestamp
+
+		variation Variation
+			isDefault
+			relationship: ba40d469-10df-46a5-a2cc-2184cb702f68
+			defaultHierarchy: LocalDateTable_771207c7-380a-4369-8edd-225a41430591.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+	column source_system
+		dataType: string
+		lineageTag: acef8359-dc8a-4b70-ab94-17fcb01a180d
+		summarizeBy: none
+		sourceColumn: source_system
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'gold dim_seller' = m
+		mode: import
+		source =
+				let
+				    Source = Sql.Database("LAPTOP-MSLO05E2\MSSQLSERVER2022", "BI_AI"),
+				    gold_dim_seller = Source{[Schema="gold",Item="dim_seller"]}[Data]
+				in
+				    gold_dim_seller
+
+	annotation PBI_ResultType = Table
+

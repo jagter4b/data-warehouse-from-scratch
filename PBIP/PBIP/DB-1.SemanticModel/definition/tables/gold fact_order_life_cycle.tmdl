@@ -1,0 +1,227 @@
+table 'gold fact_order_life_cycle'
+	lineageTag: 03abf172-e547-4dec-9150-705303dbada4
+
+	column order_fulfillment_sk
+		dataType: int64
+		formatString: 0
+		lineageTag: 32b56d07-e35c-4eab-9756-e5512f714e1b
+		summarizeBy: sum
+		sourceColumn: order_fulfillment_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column purchase_date_key
+		dataType: int64
+		formatString: 0
+		lineageTag: 5e02303d-f270-41e2-ba96-380cd6413a98
+		summarizeBy: sum
+		sourceColumn: purchase_date_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column approval_date_key
+		dataType: int64
+		formatString: 0
+		lineageTag: f17ad4c7-1165-41e0-bcce-aa2a17c56256
+		summarizeBy: none
+		sourceColumn: approval_date_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column carrier_date_key
+		dataType: int64
+		formatString: 0
+		lineageTag: a10ce0aa-7ca4-4873-8a12-4653f46b55aa
+		summarizeBy: sum
+		sourceColumn: carrier_date_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column delivery_date_key
+		dataType: int64
+		formatString: 0
+		lineageTag: bc3909f1-d8de-4552-8137-dd20720f6816
+		summarizeBy: sum
+		sourceColumn: delivery_date_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column estimated_delivery_date_key
+		dataType: int64
+		formatString: 0
+		lineageTag: 44cc6595-44df-4f5c-98bc-b9af6f014670
+		summarizeBy: sum
+		sourceColumn: estimated_delivery_date_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column customer_sk
+		dataType: int64
+		formatString: 0
+		lineageTag: 5152188f-222a-4ee3-9d1b-8ad56d0aafa5
+		summarizeBy: none
+		sourceColumn: customer_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column order_status_sk
+		dataType: int64
+		formatString: 0
+		lineageTag: be111e5d-d8fe-4e41-b244-d47060ef1a0e
+		summarizeBy: none
+		sourceColumn: order_status_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column order_id_bk
+		dataType: string
+		lineageTag: 1c07caa9-8a14-4025-b170-9d9f7e027baa
+		summarizeBy: none
+		sourceColumn: order_id_bk
+
+		annotation SummarizationSetBy = Automatic
+
+	column days_to_approve
+		dataType: int64
+		formatString: 0
+		lineageTag: 5ada7ba9-a94a-46e6-8e14-c18292b683bb
+		summarizeBy: sum
+		sourceColumn: days_to_approve
+
+		annotation SummarizationSetBy = Automatic
+
+	column days_to_ship
+		dataType: int64
+		formatString: 0
+		lineageTag: f0aba8f0-37db-47af-b265-2f48d4d209e1
+		summarizeBy: sum
+		sourceColumn: days_to_ship
+
+		annotation SummarizationSetBy = Automatic
+
+	column days_to_deliver
+		dataType: int64
+		formatString: 0
+		lineageTag: d4503075-0786-4218-bbd4-1fe6a5f4b9f8
+		summarizeBy: sum
+		sourceColumn: days_to_deliver
+
+		annotation SummarizationSetBy = Automatic
+
+	column days_purchase_to_delivery
+		dataType: int64
+		formatString: 0
+		lineageTag: 6ebe1554-e046-4b45-9046-16c51ee77d05
+		summarizeBy: sum
+		sourceColumn: days_purchase_to_delivery
+
+		annotation SummarizationSetBy = Automatic
+
+	column days_delivery_variance
+		dataType: int64
+		formatString: 0
+		lineageTag: d22a72af-3cbc-45fd-8bad-e76ea5988dbe
+		summarizeBy: sum
+		sourceColumn: days_delivery_variance
+
+		annotation SummarizationSetBy = Automatic
+
+	column is_delivered_on_time
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: a918bd61-1ba8-42fb-ab07-1fbb9550fec5
+		summarizeBy: none
+		sourceColumn: is_delivered_on_time
+
+		annotation SummarizationSetBy = Automatic
+
+	column total_items
+		dataType: int64
+		formatString: 0
+		lineageTag: 57677949-c50e-4037-b966-4e21806655b2
+		summarizeBy: sum
+		sourceColumn: total_items
+
+		annotation SummarizationSetBy = Automatic
+
+	column total_distinct_products
+		dataType: int64
+		formatString: 0
+		lineageTag: 50f80580-7cfa-4c0e-8623-8d4b7a26f19a
+		summarizeBy: sum
+		sourceColumn: total_distinct_products
+
+		annotation SummarizationSetBy = Automatic
+
+	column total_distinct_sellers
+		dataType: int64
+		formatString: 0
+		lineageTag: a173db93-48cb-44a3-b06b-682e37947e62
+		summarizeBy: sum
+		sourceColumn: total_distinct_sellers
+
+		annotation SummarizationSetBy = Automatic
+
+	column total_order_value
+		dataType: double
+		lineageTag: 259d61a4-6952-4c9e-9cd6-a398b195bfb8
+		summarizeBy: sum
+		sourceColumn: total_order_value
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column total_freight_value
+		dataType: double
+		lineageTag: f6d7c584-141b-4cc6-98bf-4c91c017d7c8
+		summarizeBy: sum
+		sourceColumn: total_freight_value
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column total_payment_value
+		dataType: double
+		lineageTag: ca02de8a-bd33-4c83-a9a9-d3840821b778
+		summarizeBy: sum
+		sourceColumn: total_payment_value
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column load_timestamp
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: e18d6f3a-df0a-41ed-b28a-3e98cc0ea8d7
+		summarizeBy: none
+		sourceColumn: load_timestamp
+
+		variation Variation
+			isDefault
+			relationship: eb92e8ab-3d03-4db3-9de5-231045842e2c
+			defaultHierarchy: LocalDateTable_137b780e-f45e-49e4-b2c0-8b5f241f9115.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+	column source_system
+		dataType: string
+		lineageTag: 6f90346c-8b0e-4353-b71f-c376a27a88c4
+		summarizeBy: none
+		sourceColumn: source_system
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'gold fact_order_life_cycle' = m
+		mode: import
+		source =
+				let
+				    Source = Sql.Database("LAPTOP-MSLO05E2\MSSQLSERVER2022", "BI_AI"),
+				    gold_fact_order_life_cycle = Source{[Schema="gold",Item="fact_order_life_cycle"]}[Data]
+				in
+				    gold_fact_order_life_cycle
+
+	annotation PBI_ResultType = Table
+

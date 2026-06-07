@@ -1,0 +1,53 @@
+table 'gold dim_payment_type'
+	lineageTag: b4d02ba7-0b84-49f7-bce3-7fedceecea1b
+
+	column payment_type_sk
+		dataType: int64
+		formatString: 0
+		lineageTag: 8aa53480-ee71-4fe5-b1b6-ea3ffbe2e7b0
+		summarizeBy: none
+		sourceColumn: payment_type_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column payment_type
+		dataType: string
+		lineageTag: d3911eb2-e95b-4c95-98c5-47fda681acb3
+		summarizeBy: none
+		sourceColumn: payment_type
+
+		annotation SummarizationSetBy = Automatic
+
+	column load_timestamp
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 98011d61-84b9-4e8a-b9be-a8c1468b1750
+		summarizeBy: none
+		sourceColumn: load_timestamp
+
+		variation Variation
+			isDefault
+			relationship: fdffe3c6-0042-49c2-8d4a-8074ea069a81
+			defaultHierarchy: LocalDateTable_cf5f6cb9-dcc8-49d0-abf5-3f24de28132a.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+	column source_system
+		dataType: string
+		lineageTag: 95306d19-c97e-4a62-a5a5-3de6a64a2848
+		summarizeBy: none
+		sourceColumn: source_system
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'gold dim_payment_type' = m
+		mode: import
+		source =
+				let
+				    Source = Sql.Database("LAPTOP-MSLO05E2\MSSQLSERVER2022", "BI_AI"),
+				    gold_dim_payment_type = Source{[Schema="gold",Item="dim_payment_type"]}[Data]
+				in
+				    gold_dim_payment_type
+
+	annotation PBI_ResultType = Table
+

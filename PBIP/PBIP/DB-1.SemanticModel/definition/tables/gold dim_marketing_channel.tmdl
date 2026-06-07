@@ -1,0 +1,127 @@
+table 'gold dim_marketing_channel'
+	lineageTag: 9ee0b3ff-bf64-4fc8-935a-f8f797038681
+
+	column mql_channel_sk
+		dataType: int64
+		formatString: 0
+		lineageTag: 89452df7-4574-4213-b735-293defc2af6e
+		summarizeBy: none
+		sourceColumn: mql_channel_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column mql_id_bk
+		dataType: string
+		lineageTag: 23af4809-3421-41a0-be4e-4bba08689ec4
+		summarizeBy: none
+		sourceColumn: mql_id_bk
+
+		annotation SummarizationSetBy = Automatic
+
+	column origin
+		dataType: string
+		lineageTag: 65337148-fa10-4b30-b391-1571cadc3508
+		summarizeBy: none
+		sourceColumn: origin
+
+		annotation SummarizationSetBy = Automatic
+
+	column landing_page_id
+		dataType: string
+		lineageTag: c8030cfd-2a48-4068-89f9-c334d209f961
+		summarizeBy: none
+		sourceColumn: landing_page_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column business_segment
+		dataType: string
+		lineageTag: dea3f4a4-f852-4a02-9a17-ecdd881b8aa6
+		summarizeBy: none
+		sourceColumn: business_segment
+
+		annotation SummarizationSetBy = Automatic
+
+	column lead_type
+		dataType: string
+		lineageTag: bb425305-d9c9-4586-b171-e149f0b183f8
+		summarizeBy: none
+		sourceColumn: lead_type
+
+		annotation SummarizationSetBy = Automatic
+
+	column lead_behaviour_profile
+		dataType: string
+		lineageTag: 5110a026-dbb9-4836-9cbe-bfb0c9bae4ef
+		summarizeBy: none
+		sourceColumn: lead_behaviour_profile
+
+		annotation SummarizationSetBy = Automatic
+
+	column business_type
+		dataType: string
+		lineageTag: 20546bd3-cb26-4868-92b2-61a708905c91
+		summarizeBy: none
+		sourceColumn: business_type
+
+		annotation SummarizationSetBy = Automatic
+
+	column average_stock
+		dataType: string
+		lineageTag: f680f517-7041-418d-a1d5-8afa23d5784e
+		summarizeBy: none
+		sourceColumn: average_stock
+
+		annotation SummarizationSetBy = Automatic
+
+	column has_company
+		dataType: int64
+		formatString: 0
+		lineageTag: 74669c6c-0d8a-4c5d-833c-db7fbc2bfa2e
+		summarizeBy: sum
+		sourceColumn: has_company
+
+		annotation SummarizationSetBy = Automatic
+
+	column has_gtin
+		dataType: int64
+		formatString: 0
+		lineageTag: 1a09c40c-b6ac-4635-b4cd-f12b6db264a2
+		summarizeBy: sum
+		sourceColumn: has_gtin
+
+		annotation SummarizationSetBy = Automatic
+
+	column load_timestamp
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 3417408a-83cb-4dc0-92b6-0067536f0da7
+		summarizeBy: none
+		sourceColumn: load_timestamp
+
+		variation Variation
+			isDefault
+			relationship: af10eb94-89b4-47ef-8cd4-396d945083fd
+			defaultHierarchy: LocalDateTable_79205058-7dfc-4ab7-8297-601fb41a307c.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+	column source_system
+		dataType: string
+		lineageTag: 61f04969-a571-4a2e-9b14-1ae7b2bfb37f
+		summarizeBy: none
+		sourceColumn: source_system
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'gold dim_marketing_channel' = m
+		mode: import
+		source =
+				let
+				    Source = Sql.Database("LAPTOP-MSLO05E2\MSSQLSERVER2022", "BI_AI"),
+				    gold_dim_marketing_channel = Source{[Schema="gold",Item="dim_marketing_channel"]}[Data]
+				in
+				    gold_dim_marketing_channel
+
+	annotation PBI_ResultType = Table
+

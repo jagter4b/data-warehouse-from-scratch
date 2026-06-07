@@ -1,0 +1,53 @@
+table 'gold dim_order_status'
+	lineageTag: 6f255987-f998-4814-9db0-12dc214db8ec
+
+	column order_status_sk
+		dataType: int64
+		formatString: 0
+		lineageTag: 7bd5f138-3290-4b0a-af55-ba75000d42d9
+		summarizeBy: none
+		sourceColumn: order_status_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column order_status
+		dataType: string
+		lineageTag: 2a3f2aeb-e424-4330-89ce-93ffebb76c18
+		summarizeBy: none
+		sourceColumn: order_status
+
+		annotation SummarizationSetBy = Automatic
+
+	column load_timestamp
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 71f1967c-2806-4c0e-ac18-e0c9f6c0c031
+		summarizeBy: none
+		sourceColumn: load_timestamp
+
+		variation Variation
+			isDefault
+			relationship: f51df52c-fec8-403b-8733-61eaa0da2ee7
+			defaultHierarchy: LocalDateTable_1d5f73d0-de44-443b-b5f6-0cd7457dfb2e.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+	column source_system
+		dataType: string
+		lineageTag: 292bba57-ffba-42b5-b90c-ec59eca0f445
+		summarizeBy: none
+		sourceColumn: source_system
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'gold dim_order_status' = m
+		mode: import
+		source =
+				let
+				    Source = Sql.Database("LAPTOP-MSLO05E2\MSSQLSERVER2022", "BI_AI"),
+				    gold_dim_order_status = Source{[Schema="gold",Item="dim_order_status"]}[Data]
+				in
+				    gold_dim_order_status
+
+	annotation PBI_ResultType = Table
+

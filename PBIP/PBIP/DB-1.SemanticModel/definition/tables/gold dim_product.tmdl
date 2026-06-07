@@ -1,0 +1,124 @@
+table 'gold dim_product'
+	lineageTag: b971307d-0722-431b-94e6-79b9e169bd99
+
+	column product_sk
+		dataType: int64
+		formatString: 0
+		lineageTag: ef3c8172-c687-4fa0-9ed9-30d9d8067c20
+		summarizeBy: none
+		sourceColumn: product_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column product_id_bk
+		dataType: string
+		lineageTag: 111bf7f4-40f3-4dd6-b8d5-736a92f00749
+		summarizeBy: none
+		sourceColumn: product_id_bk
+
+		annotation SummarizationSetBy = Automatic
+
+	column product_category_name
+		dataType: string
+		lineageTag: 7392dcc2-590e-4bec-9ae4-3282648ff309
+		summarizeBy: none
+		sourceColumn: product_category_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column product_name_length
+		dataType: int64
+		formatString: 0
+		lineageTag: a5c52f48-dd8c-446f-a24d-4799472bb848
+		summarizeBy: none
+		sourceColumn: product_name_length
+
+		annotation SummarizationSetBy = User
+
+	column product_description_length
+		dataType: int64
+		formatString: 0
+		lineageTag: 07e81e5a-0429-40e7-8764-23e76d0a283e
+		summarizeBy: sum
+		sourceColumn: product_description_length
+
+		annotation SummarizationSetBy = Automatic
+
+	column product_photos_qty
+		dataType: int64
+		formatString: 0
+		lineageTag: ebf1732b-7655-4e44-8d29-2e3c0fa986aa
+		summarizeBy: sum
+		sourceColumn: product_photos_qty
+
+		annotation SummarizationSetBy = Automatic
+
+	column product_weight_g
+		dataType: int64
+		formatString: 0
+		lineageTag: e8733888-90ab-4e4a-8767-1cdc6ca87ab9
+		summarizeBy: sum
+		sourceColumn: product_weight_g
+
+		annotation SummarizationSetBy = Automatic
+
+	column product_length_cm
+		dataType: int64
+		formatString: 0
+		lineageTag: 22da6ba4-b132-432f-a749-40bcad330fc8
+		summarizeBy: sum
+		sourceColumn: product_length_cm
+
+		annotation SummarizationSetBy = Automatic
+
+	column product_height_cm
+		dataType: int64
+		formatString: 0
+		lineageTag: 999abe8c-06ca-4aa8-99b4-4c96b10749c6
+		summarizeBy: sum
+		sourceColumn: product_height_cm
+
+		annotation SummarizationSetBy = Automatic
+
+	column product_width_cm
+		dataType: int64
+		formatString: 0
+		lineageTag: 4f2e07d2-e2a1-43e7-becd-f8c8327961eb
+		summarizeBy: sum
+		sourceColumn: product_width_cm
+
+		annotation SummarizationSetBy = Automatic
+
+	column load_timestamp
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 14198356-809b-4387-8f49-dd25c5d59109
+		summarizeBy: none
+		sourceColumn: load_timestamp
+
+		variation Variation
+			isDefault
+			relationship: cc3cd973-1ad6-4add-95ca-2f3449cea539
+			defaultHierarchy: LocalDateTable_d5c5e637-d168-4219-a21d-ffe1a30d74cb.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+	column source_system
+		dataType: string
+		lineageTag: 97d62a26-2882-48ac-b078-9b6c41a2575c
+		summarizeBy: none
+		sourceColumn: source_system
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'gold dim_product' = m
+		mode: import
+		source =
+				let
+				    Source = Sql.Database("LAPTOP-MSLO05E2\MSSQLSERVER2022", "BI_AI"),
+				    gold_dim_product = Source{[Schema="gold",Item="dim_product"]}[Data]
+				in
+				    gold_dim_product
+
+	annotation PBI_ResultType = Table
+

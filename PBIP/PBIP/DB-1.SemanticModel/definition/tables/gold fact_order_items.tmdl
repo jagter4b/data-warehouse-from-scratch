@@ -1,0 +1,137 @@
+table 'gold fact_order_items'
+	lineageTag: cd5f2d3e-0c22-437e-937f-f5319f3855b2
+
+	column order_item_sk
+		dataType: int64
+		formatString: 0
+		lineageTag: 2039c0f1-5114-415e-9418-821ff71c5a4c
+		summarizeBy: sum
+		sourceColumn: order_item_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column purchase_date_key
+		dataType: int64
+		formatString: 0
+		lineageTag: 713c3170-3e8f-4651-8cf3-cdfdd0ed7be3
+		summarizeBy: none
+		sourceColumn: purchase_date_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column shipping_limit_date_key
+		dataType: int64
+		formatString: 0
+		lineageTag: dcb6ee6c-73bb-4e0f-af39-191be144e7f4
+		summarizeBy: sum
+		sourceColumn: shipping_limit_date_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column customer_sk
+		dataType: int64
+		formatString: 0
+		lineageTag: e2e12eaf-bfbf-4bb1-b6aa-3d0f0e7e7114
+		summarizeBy: none
+		sourceColumn: customer_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column product_sk
+		dataType: int64
+		formatString: 0
+		lineageTag: db716ed9-006c-49af-82d4-07e957c05063
+		summarizeBy: none
+		sourceColumn: product_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column seller_sk
+		dataType: int64
+		formatString: 0
+		lineageTag: 9e7db319-31dd-4ff5-bd6b-f184e219e1b2
+		summarizeBy: none
+		sourceColumn: seller_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column order_id_bk
+		dataType: string
+		lineageTag: 7e55f502-33c4-4589-9478-54cc818e7fbe
+		summarizeBy: none
+		sourceColumn: order_id_bk
+
+		annotation SummarizationSetBy = Automatic
+
+	column order_item_id_bk
+		dataType: int64
+		formatString: 0
+		lineageTag: b75caec2-a1d4-4f66-892d-a2016b8dff22
+		summarizeBy: sum
+		sourceColumn: order_item_id_bk
+
+		annotation SummarizationSetBy = Automatic
+
+	column unit_price
+		dataType: double
+		lineageTag: 988f70ab-6862-4ca0-b034-288707919ca2
+		summarizeBy: sum
+		sourceColumn: unit_price
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column unit_freight_value
+		dataType: double
+		lineageTag: e5ea19ea-1a2f-41e1-9f98-f144d9a60889
+		summarizeBy: sum
+		sourceColumn: unit_freight_value
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column line_total
+		dataType: double
+		lineageTag: 48032d29-c2c7-43f7-b9c3-0fec1706e3dc
+		summarizeBy: sum
+		sourceColumn: line_total
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column load_timestamp
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 8e142d8c-cfbc-41cd-b442-1ff644425054
+		summarizeBy: none
+		sourceColumn: load_timestamp
+
+		variation Variation
+			isDefault
+			relationship: aff36da5-20ef-47ef-b7fb-4e37bb0955b7
+			defaultHierarchy: LocalDateTable_f0e0f1e3-ada3-4ed2-b6e8-21af9c94e564.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+	column source_system
+		dataType: string
+		lineageTag: 1c0c4050-2fcd-4718-b15d-0e646468b8c6
+		summarizeBy: none
+		sourceColumn: source_system
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'gold fact_order_items' = m
+		mode: import
+		source =
+				let
+				    Source = Sql.Database("LAPTOP-MSLO05E2\MSSQLSERVER2022", "BI_AI"),
+				    gold_fact_order_items = Source{[Schema="gold",Item="fact_order_items"]}[Data]
+				in
+				    gold_fact_order_items
+
+	annotation PBI_ResultType = Table
+

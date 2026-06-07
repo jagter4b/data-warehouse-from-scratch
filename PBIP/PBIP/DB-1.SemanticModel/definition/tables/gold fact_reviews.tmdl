@@ -1,0 +1,97 @@
+table 'gold fact_reviews'
+	lineageTag: 90cc205f-5e36-4402-bb69-673b483c741f
+
+	column review_sk
+		dataType: int64
+		formatString: 0
+		lineageTag: 38a8f039-324c-4ab6-b88c-5e82b5d2ad50
+		summarizeBy: none
+		sourceColumn: review_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column review_creation_date_key
+		dataType: int64
+		formatString: 0
+		lineageTag: 4129aff7-513b-4159-bfc8-c74063249278
+		summarizeBy: sum
+		sourceColumn: review_creation_date_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column review_answer_date_key
+		dataType: int64
+		formatString: 0
+		lineageTag: b2501051-80d9-4cff-a82a-f49e8265a9c2
+		summarizeBy: none
+		sourceColumn: review_answer_date_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column customer_sk
+		dataType: int64
+		formatString: 0
+		lineageTag: 094a4e79-d2ee-45f1-a3ae-be87970781aa
+		summarizeBy: none
+		sourceColumn: customer_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column review_id_bk
+		dataType: string
+		lineageTag: 1bc5734a-80c8-4cdd-81c7-340e3252bf39
+		summarizeBy: none
+		sourceColumn: review_id_bk
+
+		annotation SummarizationSetBy = Automatic
+
+	column order_id_bk
+		dataType: string
+		lineageTag: a65023a2-4780-41f9-bda3-bd551166fb26
+		summarizeBy: none
+		sourceColumn: order_id_bk
+
+		annotation SummarizationSetBy = Automatic
+
+	column review_score
+		dataType: int64
+		formatString: 0
+		lineageTag: f28fc7cb-6f51-4dea-a771-67446e69e70a
+		summarizeBy: sum
+		sourceColumn: review_score
+
+		annotation SummarizationSetBy = Automatic
+
+	column load_timestamp
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 5424efd0-2530-4239-be4f-f33323fe4941
+		summarizeBy: none
+		sourceColumn: load_timestamp
+
+		variation Variation
+			isDefault
+			relationship: 1e9112f6-e2ac-4107-99d3-f452aaefb6db
+			defaultHierarchy: LocalDateTable_68461682-ca64-4922-baae-f0309d7c116f.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+	column source_system
+		dataType: string
+		lineageTag: e6503492-b440-46fb-ba31-a1a7b2538e5f
+		summarizeBy: none
+		sourceColumn: source_system
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'gold fact_reviews' = m
+		mode: import
+		source =
+				let
+				    Source = Sql.Database("LAPTOP-MSLO05E2\MSSQLSERVER2022", "BI_AI"),
+				    gold_fact_reviews = Source{[Schema="gold",Item="fact_reviews"]}[Data]
+				in
+				    gold_fact_reviews
+
+	annotation PBI_ResultType = Table
+

@@ -1,0 +1,134 @@
+table 'gold fact_marketing_funnel'
+	lineageTag: 31f30a23-d464-4442-b185-d42c0dff038f
+
+	column closed_deal_sk
+		dataType: int64
+		formatString: 0
+		lineageTag: f91ad2e0-3a6a-4b8f-8f50-02abd7bacf5e
+		summarizeBy: sum
+		sourceColumn: closed_deal_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column first_contact_date_key
+		dataType: int64
+		formatString: 0
+		lineageTag: 4a8aeb72-bbb5-4b6e-ab31-06f0cade63c5
+		summarizeBy: none
+		sourceColumn: first_contact_date_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column won_date_key
+		dataType: int64
+		formatString: 0
+		lineageTag: 9dab17e1-1d1a-4b2c-a5dc-f5f4b3afb790
+		summarizeBy: sum
+		sourceColumn: won_date_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column seller_sk
+		dataType: int64
+		formatString: 0
+		lineageTag: a2dece0a-bdaf-4845-8f70-d11a5ac95bfb
+		summarizeBy: none
+		sourceColumn: seller_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column mql_channel_sk
+		dataType: int64
+		formatString: 0
+		lineageTag: a883ef62-c8a5-4984-936b-5af9c03c868a
+		summarizeBy: none
+		sourceColumn: mql_channel_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column mql_id_bk
+		dataType: string
+		lineageTag: 77db3b3b-7058-431e-91b3-8de5ea270abc
+		summarizeBy: none
+		sourceColumn: mql_id_bk
+
+		annotation SummarizationSetBy = Automatic
+
+	column sdr_id_bk
+		dataType: string
+		lineageTag: 2c729059-2969-4c63-bc59-bc3ba855dc1d
+		summarizeBy: none
+		sourceColumn: sdr_id_bk
+
+		annotation SummarizationSetBy = Automatic
+
+	column sr_id_bk
+		dataType: string
+		lineageTag: f18395a9-99a8-4004-8134-c917040e6c5f
+		summarizeBy: none
+		sourceColumn: sr_id_bk
+
+		annotation SummarizationSetBy = Automatic
+
+	column days_to_close
+		dataType: int64
+		formatString: 0
+		lineageTag: d46f817b-7138-49d8-a02a-6025cf16219f
+		summarizeBy: sum
+		sourceColumn: days_to_close
+
+		annotation SummarizationSetBy = Automatic
+
+	column declared_monthly_revenue
+		dataType: double
+		lineageTag: c9b491eb-8ece-41b6-94c9-a8a889473a54
+		summarizeBy: sum
+		sourceColumn: declared_monthly_revenue
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column declared_product_catalog_size
+		dataType: double
+		lineageTag: 4b0a55dc-50d5-414d-ac29-a1fcfd29f43f
+		summarizeBy: sum
+		sourceColumn: declared_product_catalog_size
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column load_timestamp
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 7de70cd9-8c9c-47f0-a442-eb92b22a4ba0
+		summarizeBy: none
+		sourceColumn: load_timestamp
+
+		variation Variation
+			isDefault
+			relationship: 771bf322-3244-425e-8655-a998bab2c4b8
+			defaultHierarchy: LocalDateTable_56201c40-226c-4a63-bfdc-980a759d6bee.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+	column source_system
+		dataType: string
+		lineageTag: 099aa8cc-8d05-439c-b8a5-dbd99a9e958d
+		summarizeBy: none
+		sourceColumn: source_system
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'gold fact_marketing_funnel' = m
+		mode: import
+		source =
+				let
+				    Source = Sql.Database("LAPTOP-MSLO05E2\MSSQLSERVER2022", "BI_AI"),
+				    gold_fact_marketing_funnel = Source{[Schema="gold",Item="fact_marketing_funnel"]}[Data]
+				in
+				    gold_fact_marketing_funnel
+
+	annotation PBI_ResultType = Table
+

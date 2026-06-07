@@ -1,0 +1,2735 @@
+table MyMeasures
+	lineageTag: 52ec6ae4-1967-4d57-a79a-f9c8894c3d25
+
+	measure 'Active Filters Count' =
+			COALESCE(
+			    COUNTROWS(
+			        FILTER(
+			            {
+			                IF(ISFILTERED('gold dim_date'[full_date]), 1, BLANK()),
+			                IF(ISFILTERED('gold dim_customer'[customer_state]), 1, BLANK()),
+			                IF(ISFILTERED('gold dim_seller'[seller_state]), 1, BLANK()),
+			                IF(ISFILTERED('gold dim_product'[product_category_name]), 1, BLANK()),
+			                IF(ISFILTERED('gold dim_order_status'[order_status]), 1, BLANK()),
+			                IF(ISFILTERED('gold dim_payment_type'[payment_type]), 1, BLANK())
+			            },
+			            NOT ISBLANK([Value])
+			        )
+			    ),
+			    0
+			)
+		formatString: 0
+		lineageTag: 82588f57-4c5c-48f6-8beb-8b3d59120d10
+
+	measure 'Total Revenue' = SUM('gold fact_order_items'[line_total])
+		formatString: #,##0.00
+		lineageTag: 9f60d711-40d6-40be-b9cd-000c0dea3a9e
+
+		annotation PBI_FormatHint = {"isGeneralNumber":false}
+
+	measure 'Total Orders' = DISTINCTCOUNT('gold fact_order_items'[order_id_bk])
+		lineageTag: 6fd77450-b656-4d09-bdd8-e21cfcae30a5
+
+		formatStringDefinition = "#,##0"
+
+	measure 'Total Order Items' = COUNTROWS('gold fact_order_items')
+		formatString: #,##0
+		lineageTag: 2475de55-1fd8-4b32-8836-4644af728a01
+
+	measure 'Total Customers' = DISTINCTCOUNT('gold fact_order_items'[customer_sk])
+		formatString: #,##0
+		lineageTag: dfd79273-caad-4a37-a13e-507fd1e26fb5
+
+	measure 'Active Sellers' = DISTINCTCOUNT('gold fact_order_items'[seller_sk])
+		formatString: #,##0
+		lineageTag: 37dfe239-bb74-4812-9660-1dc178196272
+
+	measure 'Total Reviews' = COUNTROWS('gold fact_reviews')
+		formatString: #,##0
+		lineageTag: 28ecbad8-a9a0-469b-b8ac-7895be351303
+
+	measure 'Total Freight' = SUM('gold fact_order_items'[unit_freight_value])
+		formatString: #,##0.00
+		lineageTag: 7cb06182-bc1c-4183-ad41-aa4bb2adf707
+
+	measure 'Total Payment Value' = SUM('gold fact_payments'[payment_value])
+		formatString: #,##0.00
+		lineageTag: c4cdcace-59f9-44bb-9946-ad62fe81951c
+
+	measure AOV = DIVIDE([Total Revenue], [Total Orders])
+		formatString: "R$"\ #,0.0;-"R$"\ #,0.0;"R$"\ #,0.0
+		lineageTag: 65ab4e3b-6e91-475c-a89c-4875ca9acbb2
+
+		annotation PBI_FormatHint = {"currencyCulture":"kgp-Latn-BR"}
+
+	measure 'Revenue per Customer' = DIVIDE([Total Revenue], [Total Customers])
+		formatString: "R$"#,0;-"R$"#,0;"R$"#,0
+		lineageTag: d7bdcbf1-d995-4866-9b36-73be55f3824f
+
+		annotation PBI_FormatHint = {"currencyCulture":"es-BR"}
+
+	measure 'Max Order Value' =
+			MAXX(
+			    VALUES('gold fact_order_items'[order_id_bk]),
+			    CALCULATE(SUM('gold fact_order_items'[line_total]))
+			)
+		formatString: #,##0.00
+		lineageTag: 560bbecb-c4fe-4646-9357-476c5e138975
+
+	measure 'Rolling 3M Avg Revenue' =
+			VAR _anchor = LASTNONBLANKVALUE('gold dim_date'[full_date], [Total Revenue])
+			RETURN AVERAGEX(
+			    DATESINPERIOD('gold dim_date'[full_date], _anchor, -3, MONTH),
+			    [Total Revenue]
+			)
+		formatString: #,##0.00
+		lineageTag: b430c409-c71b-4649-9383-2dd4a101773d
+
+	measure 'Revenue MoM Delta' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(
+			                   ISFILTERED('gold dim_date'[full_date]),
+			                   MAX('gold dim_date'[full_date]),
+			                   _anchor_nf
+			               )
+			VAR _mom_from  = DATE(YEAR(_anchor), MONTH(_anchor), 1)
+			VAR _mom_to    = _anchor
+			VAR _mom_pfrom = EDATE(DATE(YEAR(_anchor), MONTH(_anchor), 1), -1)
+			VAR _mom_pto   = EDATE(_anchor, -1)
+			VAR _curr  = CALCULATE([Total Revenue], DATESBETWEEN('gold dim_date'[full_date], _mom_from,  _mom_to))
+			VAR _prior = CALCULATE([Total Revenue], DATESBETWEEN('gold dim_date'[full_date], _mom_pfrom, _mom_pto))
+			RETURN _curr - _prior
+		formatString: #,##0.00
+		lineageTag: 182926ee-918a-4d97-8908-c3152d4120db
+
+	measure 'Category Revenue %' =
+			DIVIDE(
+			    [Total Revenue],
+			    CALCULATE([Total Revenue], ALL('gold dim_product'))
+			)
+		formatString: 0.00%
+		lineageTag: 86238d11-0c49-4b60-87dc-231f176a77a1
+
+	measure 'State Revenue %' =
+			DIVIDE(
+			    [Total Revenue],
+			    CALCULATE([Total Revenue], ALL('gold dim_customer'))
+			)
+		formatString: 0.00%
+		lineageTag: df814b95-256c-467a-b67f-202a7416ab0a
+
+	measure 'State Revenue Rank' =
+			RANKX(
+			    ALL('gold dim_customer'[customer_state]),
+			    [Total Revenue],
+			    ,
+			    DESC,
+			    Dense
+			)
+		formatString: #,##0
+		lineageTag: a1c091c1-a863-4849-be94-6e56549305d8
+
+	measure 'Category Rank' =
+			RANKX(
+			    ALL('gold dim_product'[product_category_name]),
+			    [Total Revenue],
+			    ,
+			    DESC,
+			    Dense
+			)
+		formatString: #,##0
+		lineageTag: f0c356f8-4dc3-4a0a-be2c-d76899bcd212
+
+	measure 'SP Revenue Share' =
+			DIVIDE(
+			    CALCULATE([Total Revenue], 'gold dim_customer'[customer_state] = "SP"),
+			    CALCULATE([Total Revenue], ALL('gold dim_customer'))
+			)
+		formatString: 0.00%
+		lineageTag: c40921f3-e16c-42e8-9520-05ee1840a06b
+
+	measure 'Category Avg Score' =
+			CALCULATE(
+			    AVERAGE('gold fact_reviews'[review_score]),
+			    FILTER(
+			        'gold fact_reviews',
+			        'gold fact_reviews'[order_id_bk] IN VALUES('gold fact_order_items'[order_id_bk])
+			    )
+			)
+		formatString: #,##0.00
+		lineageTag: 54f4a71c-0407-4291-b6fe-1e19091a1682
+
+	measure 'Avg Photos per Product' = AVERAGE('gold dim_product'[product_photos_qty])
+		formatString: #,##0.0
+		lineageTag: 174eccbd-3b69-4f48-b2cf-8d91675eb175
+
+	measure 'Repeat Customers' =
+			CALCULATE(
+			    DISTINCTCOUNT('gold fact_order_items'[customer_sk]),
+			    FILTER(
+			        VALUES('gold fact_order_items'[customer_sk]),
+			        CALCULATE([Total Orders]) > 1
+			    )
+			)
+		formatString: #,##0
+		lineageTag: 65c4a206-319b-4ad2-81f1-7cb115ec57f7
+
+	measure 'Repeat Rate' = DIVIDE([Repeat Customers], [Total Customers])
+		formatString: 0.00%
+		lineageTag: c0663632-fbc1-463f-a888-1cd0bf963359
+
+	measure 'Avg Orders per Customer' = DIVIDE([Total Orders], [Total Customers])
+		formatString: #,##0.0
+		lineageTag: ed0611bf-d6bc-4806-92df-f9b2e4df95a9
+
+	measure 'Customer Density %' =
+			DIVIDE(
+			    [Total Customers],
+			    CALCULATE([Total Customers], ALL('gold dim_customer'[customer_state]))
+			)
+		formatString: 0.00%
+		lineageTag: bf9b2006-db65-4a73-9cb4-abb0bab4812e
+
+	measure 'States Active' = DISTINCTCOUNT('gold dim_customer'[customer_state])
+		formatString: #,##0
+		lineageTag: 61085343-c144-4a0c-89e4-89bf98638019
+
+	measure 'Revenue per Seller' = DIVIDE([Total Revenue], [Active Sellers])
+		formatString: #,##0.00
+		lineageTag: 90d47e52-9c70-41af-bf49-f03c5b742b05
+
+	measure 'Top Seller Revenue' =
+			MAXX(
+			    VALUES('gold dim_seller'[seller_sk]),
+			    CALCULATE([Total Revenue])
+			)
+		formatString: #,##0.00
+		lineageTag: 12d08b14-b854-415f-b0ef-64574ffce4be
+
+	measure 'Seller Revenue' =
+			CALCULATE(
+			    [Total Revenue],
+			    ALLEXCEPT('gold dim_seller', 'gold dim_seller'[seller_sk])
+			)
+		formatString: #,##0.00
+		lineageTag: 0ffb348e-0c82-4132-8180-3a93383f41e3
+
+	measure 'Seller Order Count' =
+			CALCULATE(
+			    [Total Orders],
+			    ALLEXCEPT('gold dim_seller', 'gold dim_seller'[seller_sk])
+			)
+		formatString: #,##0
+		lineageTag: 1d416626-c282-4602-97ab-7b2f319daf83
+
+	measure 'Seller Avg Score' =
+			CALCULATE(
+			    [Avg Review Score],
+			    ALLEXCEPT('gold dim_seller', 'gold dim_seller'[seller_sk])
+			)
+		formatString: #,##0.00
+		lineageTag: 80797c3f-a71f-4295-8753-2493243df206
+
+	measure 'Cumulative Seller Revenue %' =
+			VAR _sellerRank =
+			    RANKX(
+			        ALL('gold dim_seller'[seller_sk]),
+			        [Total Revenue],
+			        ,
+			        DESC,
+			        Dense
+			    )
+			VAR _cumRev =
+			    CALCULATE(
+			        [Total Revenue],
+			        FILTER(
+			            ALL('gold dim_seller'[seller_sk]),
+			            RANKX(
+			                ALL('gold dim_seller'[seller_sk]),
+			                CALCULATE([Total Revenue]),
+			                ,
+			                DESC,
+			                Dense
+			            ) <= _sellerRank
+			        )
+			    )
+			VAR _totalRev = CALCULATE([Total Revenue], ALL('gold dim_seller'))
+			RETURN DIVIDE(_cumRev, _totalRev)
+		formatString: 0.00%
+		lineageTag: 1762dc00-8e79-4e6c-9e6f-ff7a75b10b4b
+
+	measure 'Avg Delivery Days' = AVERAGE('gold fact_order_life_cycle'[days_purchase_to_delivery])
+		formatString: #,##0.0
+		lineageTag: 34607f4d-6883-4ae0-bd28-4ec3db4efed3
+
+	measure 'Avg Days to Approve' = AVERAGE('gold fact_order_life_cycle'[days_to_approve])
+		formatString: #,##0.0
+		lineageTag: 54ecd991-d777-424b-8c7b-91290f730c2f
+
+	measure 'Avg Days to Ship' = AVERAGE('gold fact_order_life_cycle'[days_to_ship])
+		formatString: #,##0.0
+		lineageTag: 5dcf1fa7-fac3-4d54-ba68-c74224b30ee8
+
+	measure 'Avg Days Carrier to Delivery' = AVERAGE('gold fact_order_life_cycle'[days_to_deliver])
+		formatString: #,##0.0
+		lineageTag: a821719c-b258-4bf8-ae54-cfb68c644a1c
+
+	measure 'Delivery Target' = 12
+		formatString: #,##0.0
+		lineageTag: e24b69e4-2525-4fa7-b341-5fe9335626ca
+
+	measure 'Delivery Variance' = [Avg Delivery Days] - [Delivery Target]
+		formatString: #,##0.0
+		lineageTag: 1b326993-781a-4c03-a3bf-c15190029a80
+
+	measure 'On-Time Delivery %' =
+			DIVIDE(
+			    CALCULATE(
+			        COUNTROWS('gold fact_order_life_cycle'),
+			        'gold fact_order_life_cycle'[days_delivery_variance] <= 0
+			    ),
+			    COUNTROWS('gold fact_order_life_cycle')
+			)
+		formatString: 0.00%
+		lineageTag: 90eba0fd-ed82-4691-9956-4dc8264a03d6
+
+	measure 'North Region Delivery' =
+			CALCULATE(
+			    [Avg Delivery Days],
+			    FILTER(
+			        'gold dim_customer',
+			        'gold dim_customer'[customer_state] IN {"AM","PA","AC","RO","RR","AP","TO"}
+			    )
+			)
+		formatString: #,##0.0
+		lineageTag: 4debaedb-a237-40c2-bc55-738798395ba4
+
+	measure 'Delivered Orders' =
+			CALCULATE(
+			    DISTINCTCOUNT('gold fact_order_life_cycle'[order_id_bk]),
+			    'gold dim_order_status'[order_status] = "delivered"
+			)
+		formatString: #,##0
+		lineageTag: c273aa94-2cfc-4133-8833-159f6538ac31
+
+	measure 'Approved Orders' =
+			CALCULATE(
+			    DISTINCTCOUNT('gold fact_order_life_cycle'[order_id_bk]),
+			    'gold dim_order_status'[order_status] IN {"approved", "processing", "shipped", "delivered", "invoiced"}
+			)
+		formatString: #,##0
+		lineageTag: 26c0b6d4-7969-4a80-8cde-9c7370b9492e
+
+	measure 'Shipped Orders' =
+			CALCULATE(
+			    DISTINCTCOUNT('gold fact_order_life_cycle'[order_id_bk]),
+			    'gold dim_order_status'[order_status] IN {"shipped", "delivered"}
+			)
+		formatString: #,##0
+		lineageTag: bdae6e1e-9108-4b35-97d6-6ee3d741a0e8
+
+	measure 'Cancelled Orders' =
+			CALCULATE(
+			    DISTINCTCOUNT('gold fact_order_life_cycle'[order_id_bk]),
+			    'gold dim_order_status'[order_status] = "canceled"
+			)
+		formatString: #,##0
+		lineageTag: c6013fdf-6c04-42aa-933d-7fa80dd63e0c
+
+	measure 'Unavailable Orders' =
+			CALCULATE(
+			    DISTINCTCOUNT('gold fact_order_life_cycle'[order_id_bk]),
+			    'gold dim_order_status'[order_status] = "unavailable"
+			)
+		formatString: #,##0
+		lineageTag: 796cf4f9-9f5e-4b26-812e-18d423811d4f
+
+	measure 'Cancellation Rate' = DIVIDE([Cancelled Orders], [Total Orders])
+		formatString: 0.00%
+		lineageTag: c045c2d4-4add-4daa-9f81-a9fd663b3402
+
+	measure 'Fulfillment Rate' = DIVIDE([Delivered Orders], [Total Orders])
+		formatString: 0.00%
+		lineageTag: 245254e8-0ab5-4baa-97bd-444f475ebcd0
+
+	measure 'Avg Review Score' = AVERAGE('gold fact_reviews'[review_score])
+		formatString: #,##0.00
+		lineageTag: ef45e485-fe6d-46cb-acd1-e91c02e56f40
+
+	measure '1-Star Rate' =
+			DIVIDE(
+			    CALCULATE(COUNTROWS('gold fact_reviews'), 'gold fact_reviews'[review_score] = 1),
+			    [Total Reviews]
+			)
+		formatString: 0.00%
+		lineageTag: 576ebd17-9b16-46d0-bd99-c2e0a8f73aa2
+
+	measure '5-Star Rate' =
+			DIVIDE(
+			    CALCULATE(COUNTROWS('gold fact_reviews'), 'gold fact_reviews'[review_score] = 5),
+			    [Total Reviews]
+			)
+		formatString: 0.00%
+		lineageTag: 7c67599a-01bc-417d-befd-d4ac68f13094
+
+	measure 'Reviews with Comments' =
+			DIVIDE(
+			    CALCULATE(
+			        COUNTROWS('gold fact_reviews'),
+			        FILTER(
+			            'gold fact_reviews',
+			            NOT(ISBLANK(RELATED('gold review_comments'[review_comment_message])))
+			        )
+			    ),
+			    [Total Reviews]
+			)
+		formatString: 0.00%
+		lineageTag: c915d92b-05a4-4ce1-a053-d455dc5d7339
+
+	measure 'Review Score %' = DIVIDE([Avg Review Score], 5)
+		formatString: 0.00%
+		lineageTag: 5f4ccd3a-e38a-4ecc-9091-465552065f51
+
+	measure 'Score vs Target' = [Avg Review Score] - 4.0
+		formatString: #,##0.00
+		lineageTag: 92d37f7a-6ccc-4c77-ab76-c6aa22993e49
+
+	measure 'Total MQLs' = DISTINCTCOUNT('gold fact_marketing_funnel'[mql_id_bk])
+		formatString: #,##0
+		lineageTag: 47357460-56b4-4227-98d3-180a84ec0d39
+
+	measure 'Total Deals' = DISTINCTCOUNT('gold fact_marketing_funnel'[closed_deal_sk])
+		formatString: #,##0
+		lineageTag: 2f2d08c1-25da-464c-be4a-b69596e6e088
+
+	measure 'MQL Conversion Rate' = DIVIDE([Total Deals], [Total MQLs])
+		formatString: 0.00%
+		lineageTag: b60bd9ab-4d88-41f4-ac05-9ec2ccdd7af5
+
+	measure 'Avg Days to Close' = AVERAGE('gold fact_marketing_funnel'[days_to_close])
+		formatString: #,##0.0
+		lineageTag: f36ae50b-cb1e-4dae-85e8-315f8ee88064
+
+	measure 'Avg Declared Monthly Revenue' = AVERAGE('gold fact_marketing_funnel'[declared_monthly_revenue])
+		formatString: #,##0.00
+		lineageTag: 4701362c-c1f0-46de-97f9-4ca560463988
+
+	measure 'Active Channels' = DISTINCTCOUNT('gold dim_marketing_channel'[origin])
+		formatString: #,##0
+		lineageTag: a0464c6f-3c5b-4233-a306-91049ffa9485
+
+	measure 'Has Company %' =
+			DIVIDE(
+			    CALCULATE(
+			        COUNTROWS('gold dim_marketing_channel'),
+			        'gold dim_marketing_channel'[has_company] = 1
+			    ),
+			    COUNTROWS('gold dim_marketing_channel')
+			)
+		formatString: 0.00%
+		lineageTag: d3605146-d22b-4b60-af7f-6a87101c8df3
+
+	measure 'Avg Installments' = AVERAGE('gold fact_payments'[payment_installments])
+		formatString: #,##0.0
+		lineageTag: c8d35b87-7f4c-46a3-a46f-00b4cba841a8
+
+	measure 'Max Installments Used' = MAX('gold fact_payments'[payment_installments])
+		formatString: #,##0
+		lineageTag: 2443b913-c944-4e6b-8b49-da66b5fd8a28
+
+	measure 'Orders Using Installments %' =
+			DIVIDE(
+			    CALCULATE(
+			        DISTINCTCOUNT('gold fact_payments'[order_id_bk]),
+			        'gold fact_payments'[payment_installments] > 1
+			    ),
+			    DISTINCTCOUNT('gold fact_payments'[order_id_bk])
+			)
+		formatString: 0.00%
+		lineageTag: 90409e60-7aeb-4cd0-963d-06888adf8178
+
+	measure 'Payment Success %' =
+			DIVIDE(
+			    DISTINCTCOUNT('gold fact_payments'[order_id_bk]),
+			    [Total Orders]
+			)
+		formatString: 0.00%
+		lineageTag: f1926aeb-4e22-4ed0-b68e-ce866e31434c
+
+	measure 'Operational Health Score' =
+			VAR _fulfillment  = [Fulfillment Rate]
+			VAR _onTime       = [On-Time Delivery %]
+			VAR _reviewScore  = [Review Score %]
+			VAR _paySuccess   = [Payment Success %]
+			VAR _mqlConv      = [MQL Conversion Rate]
+			RETURN DIVIDE(_fulfillment + _onTime + _reviewScore + _paySuccess + _mqlConv, 5)
+		formatString: 0.00%
+		lineageTag: 84bfe892-3f0e-4c0c-a7b5-b9d5a6ddd123
+
+	measure 'Top Revenue State' =
+			FIRSTNONBLANK(
+			    TOPN(
+			        1,
+			        VALUES('gold dim_customer'[customer_state]),
+			        [Total Revenue],
+			        DESC
+			    ),
+			    1
+			)
+		lineageTag: b3a7c2f1-d4e8-4a9c-b1f0-e5d9a8c7b2e1
+
+	measure 'Revenue PM' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(
+			                   ISFILTERED('gold dim_date'[full_date]),
+			                   MAX('gold dim_date'[full_date]),
+			                   _anchor_nf
+			               )
+			VAR _mom_from  = DATE(YEAR(_anchor), MONTH(_anchor), 1)
+			VAR _mom_to    = _anchor
+			VAR _mom_pfrom = EDATE(DATE(YEAR(_anchor), MONTH(_anchor), 1), -1)
+			VAR _mom_pto   = EDATE(_anchor, -1)
+			RETURN CALCULATE([Total Revenue], DATESBETWEEN('gold dim_date'[full_date], _mom_pfrom, _mom_pto))
+		formatString: #,##0.00
+		lineageTag: 4a5e739c-3030-487a-b1f1-9e87ca38a7bf
+
+	measure 'Revenue PQ' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(
+			                   ISFILTERED('gold dim_date'[full_date]),
+			                   MAX('gold dim_date'[full_date]),
+			                   _anchor_nf
+			               )
+			VAR _q_mo      = (INT((MONTH(_anchor) - 1) / 3)) * 3 + 1
+			VAR _qoq_from  = DATE(YEAR(_anchor), _q_mo, 1)
+			VAR _qoq_to    = _anchor
+			VAR _qoq_pfrom = EDATE(DATE(YEAR(_anchor), _q_mo, 1), -3)
+			VAR _qoq_pto   = EDATE(_anchor, -3)
+			RETURN CALCULATE([Total Revenue], DATESBETWEEN('gold dim_date'[full_date], _qoq_pfrom, _qoq_pto))
+		formatString: #,##0.00
+		lineageTag: 7ab0dee5-c55c-4592-a32e-b0065cb7f0bd
+
+	measure 'Revenue PY' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(
+			                   ISFILTERED('gold dim_date'[full_date]),
+			                   MAX('gold dim_date'[full_date]),
+			                   _anchor_nf
+			               )
+			VAR _yoy_from  = DATE(YEAR(_anchor), 1, 1)
+			VAR _yoy_to    = _anchor
+			VAR _yoy_pfrom = DATE(YEAR(_anchor) - 1, 1, 1)
+			VAR _yoy_pto   = EDATE(_anchor, -12)
+			RETURN CALCULATE([Total Revenue], DATESBETWEEN('gold dim_date'[full_date], _yoy_pfrom, _yoy_pto))
+		formatString: #,##0.00
+		lineageTag: 6efb7d24-6dd2-4036-9431-54ebedead880
+
+	measure 'Revenue MoM %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(
+			                   ISFILTERED('gold dim_date'[full_date]),
+			                   MAX('gold dim_date'[full_date]),
+			                   _anchor_nf
+			               )
+			VAR _mom_from  = DATE(YEAR(_anchor), MONTH(_anchor), 1)
+			VAR _mom_to    = _anchor
+			VAR _mom_pfrom = EDATE(DATE(YEAR(_anchor), MONTH(_anchor), 1), -1)
+			VAR _mom_pto   = EDATE(_anchor, -1)
+			VAR _curr  = CALCULATE([Total Revenue], DATESBETWEEN('gold dim_date'[full_date], _mom_from,  _mom_to))
+			VAR _prior = CALCULATE([Total Revenue], DATESBETWEEN('gold dim_date'[full_date], _mom_pfrom, _mom_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: 7c6d667f-95cf-4309-ae9f-ae5cb69e59b7
+
+	measure 'Revenue QoQ %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(
+			                   ISFILTERED('gold dim_date'[full_date]),
+			                   MAX('gold dim_date'[full_date]),
+			                   _anchor_nf
+			               )
+			VAR _q_mo      = (INT((MONTH(_anchor) - 1) / 3)) * 3 + 1
+			VAR _qoq_from  = DATE(YEAR(_anchor), _q_mo, 1)
+			VAR _qoq_to    = _anchor
+			VAR _qoq_pfrom = EDATE(DATE(YEAR(_anchor), _q_mo, 1), -3)
+			VAR _qoq_pto   = EDATE(_anchor, -3)
+			VAR _curr  = CALCULATE([Total Revenue], DATESBETWEEN('gold dim_date'[full_date], _qoq_from,  _qoq_to))
+			VAR _prior = CALCULATE([Total Revenue], DATESBETWEEN('gold dim_date'[full_date], _qoq_pfrom, _qoq_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: 18392f74-239e-452b-9b97-b2c6ab630476
+
+	measure 'Revenue YoY %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(
+			                   ISFILTERED('gold dim_date'[full_date]),
+			                   MAX('gold dim_date'[full_date]),
+			                   _anchor_nf
+			               )
+			VAR _yoy_from  = DATE(YEAR(_anchor), 1, 1)
+			VAR _yoy_to    = _anchor
+			VAR _yoy_pfrom = DATE(YEAR(_anchor) - 1, 1, 1)
+			VAR _yoy_pto   = EDATE(_anchor, -12)
+			VAR _curr  = CALCULATE([Total Revenue], DATESBETWEEN('gold dim_date'[full_date], _yoy_from,  _yoy_to))
+			VAR _prior = CALCULATE([Total Revenue], DATESBETWEEN('gold dim_date'[full_date], _yoy_pfrom, _yoy_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		lineageTag: 0b07ef0c-6132-4991-a959-7643918173d4
+
+		formatStringDefinition = "+0.00%;-0.0%; 0.0%"
+
+	measure 'Orders PM' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(
+			                   ISFILTERED('gold dim_date'[full_date]),
+			                   MAX('gold dim_date'[full_date]),
+			                   _anchor_nf
+			               )
+			VAR _mom_from  = DATE(YEAR(_anchor), MONTH(_anchor), 1)
+			VAR _mom_to    = _anchor
+			VAR _mom_pfrom = EDATE(DATE(YEAR(_anchor), MONTH(_anchor), 1), -1)
+			VAR _mom_pto   = EDATE(_anchor, -1)
+			RETURN CALCULATE([Total Orders], DATESBETWEEN('gold dim_date'[full_date], _mom_pfrom, _mom_pto))
+		formatString: #,##0
+		lineageTag: 254a3078-2e13-40ef-b89a-62c6694a7c0f
+
+	measure 'Orders PQ' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(
+			                   ISFILTERED('gold dim_date'[full_date]),
+			                   MAX('gold dim_date'[full_date]),
+			                   _anchor_nf
+			               )
+			VAR _q_mo      = (INT((MONTH(_anchor) - 1) / 3)) * 3 + 1
+			VAR _qoq_from  = DATE(YEAR(_anchor), _q_mo, 1)
+			VAR _qoq_to    = _anchor
+			VAR _qoq_pfrom = EDATE(DATE(YEAR(_anchor), _q_mo, 1), -3)
+			VAR _qoq_pto   = EDATE(_anchor, -3)
+			RETURN CALCULATE([Total Orders], DATESBETWEEN('gold dim_date'[full_date], _qoq_pfrom, _qoq_pto))
+		formatString: #,##0
+		lineageTag: 8666dc06-14d9-491f-8991-7dc4280af1e1
+
+	measure 'Orders PY' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(
+			                   ISFILTERED('gold dim_date'[full_date]),
+			                   MAX('gold dim_date'[full_date]),
+			                   _anchor_nf
+			               )
+			VAR _yoy_from  = DATE(YEAR(_anchor), 1, 1)
+			VAR _yoy_to    = _anchor
+			VAR _yoy_pfrom = DATE(YEAR(_anchor) - 1, 1, 1)
+			VAR _yoy_pto   = EDATE(_anchor, -12)
+			RETURN CALCULATE([Total Orders], DATESBETWEEN('gold dim_date'[full_date], _yoy_pfrom, _yoy_pto))
+		formatString: #,##0
+		lineageTag: 0653de2e-5ce7-45e7-8904-a2a2caa4aa55
+
+	measure 'Orders MoM %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(
+			                   ISFILTERED('gold dim_date'[full_date]),
+			                   MAX('gold dim_date'[full_date]),
+			                   _anchor_nf
+			               )
+			VAR _mom_from  = DATE(YEAR(_anchor), MONTH(_anchor), 1)
+			VAR _mom_to    = _anchor
+			VAR _mom_pfrom = EDATE(DATE(YEAR(_anchor), MONTH(_anchor), 1), -1)
+			VAR _mom_pto   = EDATE(_anchor, -1)
+			VAR _curr  = CALCULATE([Total Orders], DATESBETWEEN('gold dim_date'[full_date], _mom_from,  _mom_to))
+			VAR _prior = CALCULATE([Total Orders], DATESBETWEEN('gold dim_date'[full_date], _mom_pfrom, _mom_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: c142e3c0-08cc-4034-86df-40212538a52c
+
+	measure 'Orders QoQ %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(
+			                   ISFILTERED('gold dim_date'[full_date]),
+			                   MAX('gold dim_date'[full_date]),
+			                   _anchor_nf
+			               )
+			VAR _q_mo      = (INT((MONTH(_anchor) - 1) / 3)) * 3 + 1
+			VAR _qoq_from  = DATE(YEAR(_anchor), _q_mo, 1)
+			VAR _qoq_to    = _anchor
+			VAR _qoq_pfrom = EDATE(DATE(YEAR(_anchor), _q_mo, 1), -3)
+			VAR _qoq_pto   = EDATE(_anchor, -3)
+			VAR _curr  = CALCULATE([Total Orders], DATESBETWEEN('gold dim_date'[full_date], _qoq_from,  _qoq_to))
+			VAR _prior = CALCULATE([Total Orders], DATESBETWEEN('gold dim_date'[full_date], _qoq_pfrom, _qoq_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: e057892e-e90b-43e0-9888-d46240c9af46
+
+	measure 'Orders YoY %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(
+			                   ISFILTERED('gold dim_date'[full_date]),
+			                   MAX('gold dim_date'[full_date]),
+			                   _anchor_nf
+			               )
+			VAR _yoy_from  = DATE(YEAR(_anchor), 1, 1)
+			VAR _yoy_to    = _anchor
+			VAR _yoy_pfrom = DATE(YEAR(_anchor) - 1, 1, 1)
+			VAR _yoy_pto   = EDATE(_anchor, -12)
+			VAR _curr  = CALCULATE([Total Orders], DATESBETWEEN('gold dim_date'[full_date], _yoy_from,  _yoy_to))
+			VAR _prior = CALCULATE([Total Orders], DATESBETWEEN('gold dim_date'[full_date], _yoy_pfrom, _yoy_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		lineageTag: 52d94f47-3a42-46a5-9933-a564db6195d6
+
+		formatStringDefinition = "+0.00%;-0.0%;0.0%"
+
+	measure 'Customers PM' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(
+			                   ISFILTERED('gold dim_date'[full_date]),
+			                   MAX('gold dim_date'[full_date]),
+			                   _anchor_nf
+			               )
+			VAR _mom_from  = DATE(YEAR(_anchor), MONTH(_anchor), 1)
+			VAR _mom_to    = _anchor
+			VAR _mom_pfrom = EDATE(DATE(YEAR(_anchor), MONTH(_anchor), 1), -1)
+			VAR _mom_pto   = EDATE(_anchor, -1)
+			RETURN CALCULATE([Total Customers], DATESBETWEEN('gold dim_date'[full_date], _mom_pfrom, _mom_pto))
+		formatString: #,##0
+		lineageTag: aff79c44-c248-4fcc-a181-e4edbb77c368
+
+	measure 'Customers PQ' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(
+			                   ISFILTERED('gold dim_date'[full_date]),
+			                   MAX('gold dim_date'[full_date]),
+			                   _anchor_nf
+			               )
+			VAR _q_mo      = (INT((MONTH(_anchor) - 1) / 3)) * 3 + 1
+			VAR _qoq_from  = DATE(YEAR(_anchor), _q_mo, 1)
+			VAR _qoq_to    = _anchor
+			VAR _qoq_pfrom = EDATE(DATE(YEAR(_anchor), _q_mo, 1), -3)
+			VAR _qoq_pto   = EDATE(_anchor, -3)
+			RETURN CALCULATE([Total Customers], DATESBETWEEN('gold dim_date'[full_date], _qoq_pfrom, _qoq_pto))
+		formatString: #,##0
+		lineageTag: 5c73f268-2847-46bf-92ae-384fd7df5173
+
+	measure 'Customers PY' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(
+			                   ISFILTERED('gold dim_date'[full_date]),
+			                   MAX('gold dim_date'[full_date]),
+			                   _anchor_nf
+			               )
+			VAR _yoy_from  = DATE(YEAR(_anchor), 1, 1)
+			VAR _yoy_to    = _anchor
+			VAR _yoy_pfrom = DATE(YEAR(_anchor) - 1, 1, 1)
+			VAR _yoy_pto   = EDATE(_anchor, -12)
+			RETURN CALCULATE([Total Customers], DATESBETWEEN('gold dim_date'[full_date], _yoy_pfrom, _yoy_pto))
+		formatString: #,##0
+		lineageTag: b966422a-ecd3-429a-9e58-4de7a7baff56
+
+	measure 'Customers MoM %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(
+			                   ISFILTERED('gold dim_date'[full_date]),
+			                   MAX('gold dim_date'[full_date]),
+			                   _anchor_nf
+			               )
+			VAR _mom_from  = DATE(YEAR(_anchor), MONTH(_anchor), 1)
+			VAR _mom_to    = _anchor
+			VAR _mom_pfrom = EDATE(DATE(YEAR(_anchor), MONTH(_anchor), 1), -1)
+			VAR _mom_pto   = EDATE(_anchor, -1)
+			VAR _curr  = CALCULATE([Total Customers], DATESBETWEEN('gold dim_date'[full_date], _mom_from,  _mom_to))
+			VAR _prior = CALCULATE([Total Customers], DATESBETWEEN('gold dim_date'[full_date], _mom_pfrom, _mom_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: 2a92fca2-f7c2-45f4-996a-25470cda3f0a
+
+	measure 'Customers QoQ %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(
+			                   ISFILTERED('gold dim_date'[full_date]),
+			                   MAX('gold dim_date'[full_date]),
+			                   _anchor_nf
+			               )
+			VAR _q_mo      = (INT((MONTH(_anchor) - 1) / 3)) * 3 + 1
+			VAR _qoq_from  = DATE(YEAR(_anchor), _q_mo, 1)
+			VAR _qoq_to    = _anchor
+			VAR _qoq_pfrom = EDATE(DATE(YEAR(_anchor), _q_mo, 1), -3)
+			VAR _qoq_pto   = EDATE(_anchor, -3)
+			VAR _curr  = CALCULATE([Total Customers], DATESBETWEEN('gold dim_date'[full_date], _qoq_from,  _qoq_to))
+			VAR _prior = CALCULATE([Total Customers], DATESBETWEEN('gold dim_date'[full_date], _qoq_pfrom, _qoq_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: 5d0ec1ec-20a6-47ae-8fde-78ad8d6698c8
+
+	measure 'Customers YoY %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(
+			                   ISFILTERED('gold dim_date'[full_date]),
+			                   MAX('gold dim_date'[full_date]),
+			                   _anchor_nf
+			               )
+			VAR _yoy_from  = DATE(YEAR(_anchor), 1, 1)
+			VAR _yoy_to    = _anchor
+			VAR _yoy_pfrom = DATE(YEAR(_anchor) - 1, 1, 1)
+			VAR _yoy_pto   = EDATE(_anchor, -12)
+			VAR _curr  = CALCULATE([Total Customers], DATESBETWEEN('gold dim_date'[full_date], _yoy_from,  _yoy_to))
+			VAR _prior = CALCULATE([Total Customers], DATESBETWEEN('gold dim_date'[full_date], _yoy_pfrom, _yoy_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		lineageTag: 986e929e-3e76-4464-a459-7242b73c7626
+
+		formatStringDefinition = "+0.00%;-0.0%;0.0%"
+
+	measure 'Review Score PM' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(
+			                   ISFILTERED('gold dim_date'[full_date]),
+			                   MAX('gold dim_date'[full_date]),
+			                   _anchor_nf
+			               )
+			VAR _mom_from  = DATE(YEAR(_anchor), MONTH(_anchor), 1)
+			VAR _mom_to    = _anchor
+			VAR _mom_pfrom = EDATE(DATE(YEAR(_anchor), MONTH(_anchor), 1), -1)
+			VAR _mom_pto   = EDATE(_anchor, -1)
+			RETURN CALCULATE([Avg Review Score], DATESBETWEEN('gold dim_date'[full_date], _mom_pfrom, _mom_pto))
+		formatString: #,##0.00
+		lineageTag: d57f2c41-70fe-4488-999a-97bb9395b65b
+
+	measure 'Review Score PQ' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(
+			                   ISFILTERED('gold dim_date'[full_date]),
+			                   MAX('gold dim_date'[full_date]),
+			                   _anchor_nf
+			               )
+			VAR _q_mo      = (INT((MONTH(_anchor) - 1) / 3)) * 3 + 1
+			VAR _qoq_from  = DATE(YEAR(_anchor), _q_mo, 1)
+			VAR _qoq_to    = _anchor
+			VAR _qoq_pfrom = EDATE(DATE(YEAR(_anchor), _q_mo, 1), -3)
+			VAR _qoq_pto   = EDATE(_anchor, -3)
+			RETURN CALCULATE([Avg Review Score], DATESBETWEEN('gold dim_date'[full_date], _qoq_pfrom, _qoq_pto))
+		formatString: #,##0.00
+		lineageTag: 4965ad2b-a66e-487c-a4a8-41351647483f
+
+	measure 'Review Score PY' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(
+			                   ISFILTERED('gold dim_date'[full_date]),
+			                   MAX('gold dim_date'[full_date]),
+			                   _anchor_nf
+			               )
+			VAR _yoy_from  = DATE(YEAR(_anchor), 1, 1)
+			VAR _yoy_to    = _anchor
+			VAR _yoy_pfrom = DATE(YEAR(_anchor) - 1, 1, 1)
+			VAR _yoy_pto   = EDATE(_anchor, -12)
+			RETURN CALCULATE([Avg Review Score], DATESBETWEEN('gold dim_date'[full_date], _yoy_pfrom, _yoy_pto))
+		formatString: #,##0.00
+		lineageTag: 89d50827-9d88-43f1-8102-60b6fd4a43c4
+
+	measure 'Review Score QoQ %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(
+			                   ISFILTERED('gold dim_date'[full_date]),
+			                   MAX('gold dim_date'[full_date]),
+			                   _anchor_nf
+			               )
+			VAR _q_mo      = (INT((MONTH(_anchor) - 1) / 3)) * 3 + 1
+			VAR _qoq_from  = DATE(YEAR(_anchor), _q_mo, 1)
+			VAR _qoq_to    = _anchor
+			VAR _qoq_pfrom = EDATE(DATE(YEAR(_anchor), _q_mo, 1), -3)
+			VAR _qoq_pto   = EDATE(_anchor, -3)
+			VAR _curr  = CALCULATE([Avg Review Score], DATESBETWEEN('gold dim_date'[full_date], _qoq_from,  _qoq_to))
+			VAR _prior = CALCULATE([Avg Review Score], DATESBETWEEN('gold dim_date'[full_date], _qoq_pfrom, _qoq_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: f4d30004-c8b6-4b75-8a52-422cd8da3603
+
+	measure 'Review Score YoY %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(
+			                   ISFILTERED('gold dim_date'[full_date]),
+			                   MAX('gold dim_date'[full_date]),
+			                   _anchor_nf
+			               )
+			VAR _yoy_from  = DATE(YEAR(_anchor), 1, 1)
+			VAR _yoy_to    = _anchor
+			VAR _yoy_pfrom = DATE(YEAR(_anchor) - 1, 1, 1)
+			VAR _yoy_pto   = EDATE(_anchor, -12)
+			VAR _curr  = CALCULATE([Avg Review Score], DATESBETWEEN('gold dim_date'[full_date], _yoy_from,  _yoy_to))
+			VAR _prior = CALCULATE([Avg Review Score], DATESBETWEEN('gold dim_date'[full_date], _yoy_pfrom, _yoy_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		lineageTag: 03e7e0b9-eb92-4a42-bf2c-58d0f7e49f40
+
+		formatStringDefinition = "+0.00%; -0.00%; 0.00%"
+
+	measure 'Delivery Days PM' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(
+			                   ISFILTERED('gold dim_date'[full_date]),
+			                   MAX('gold dim_date'[full_date]),
+			                   _anchor_nf
+			               )
+			VAR _mom_from  = DATE(YEAR(_anchor), MONTH(_anchor), 1)
+			VAR _mom_to    = _anchor
+			VAR _mom_pfrom = EDATE(DATE(YEAR(_anchor), MONTH(_anchor), 1), -1)
+			VAR _mom_pto   = EDATE(_anchor, -1)
+			RETURN CALCULATE([Avg Delivery Days], DATESBETWEEN('gold dim_date'[full_date], _mom_pfrom, _mom_pto), USERELATIONSHIP('gold fact_order_life_cycle'[purchase_date_key], 'gold dim_date'[date_key]))
+		formatString: #,##0.0
+		lineageTag: 4662e3f5-fa9e-4481-aeae-be05a3a57e08
+
+	measure 'Delivery Days PQ' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(
+			                   ISFILTERED('gold dim_date'[full_date]),
+			                   MAX('gold dim_date'[full_date]),
+			                   _anchor_nf
+			               )
+			VAR _q_mo      = (INT((MONTH(_anchor) - 1) / 3)) * 3 + 1
+			VAR _qoq_from  = DATE(YEAR(_anchor), _q_mo, 1)
+			VAR _qoq_to    = _anchor
+			VAR _qoq_pfrom = EDATE(DATE(YEAR(_anchor), _q_mo, 1), -3)
+			VAR _qoq_pto   = EDATE(_anchor, -3)
+			RETURN CALCULATE([Avg Delivery Days], DATESBETWEEN('gold dim_date'[full_date], _qoq_pfrom, _qoq_pto), USERELATIONSHIP('gold fact_order_life_cycle'[purchase_date_key], 'gold dim_date'[date_key]))
+		formatString: #,##0.0
+		lineageTag: 8ec7e2cc-2b90-45e5-b92b-424db9c05242
+
+	measure 'Delivery Days PY' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(
+			                   ISFILTERED('gold dim_date'[full_date]),
+			                   MAX('gold dim_date'[full_date]),
+			                   _anchor_nf
+			               )
+			VAR _yoy_from  = DATE(YEAR(_anchor), 1, 1)
+			VAR _yoy_to    = _anchor
+			VAR _yoy_pfrom = DATE(YEAR(_anchor) - 1, 1, 1)
+			VAR _yoy_pto   = EDATE(_anchor, -12)
+			RETURN CALCULATE([Avg Delivery Days], DATESBETWEEN('gold dim_date'[full_date], _yoy_pfrom, _yoy_pto), USERELATIONSHIP('gold fact_order_life_cycle'[purchase_date_key], 'gold dim_date'[date_key]))
+		formatString: #,##0.0
+		lineageTag: f655e7ab-6dc0-4622-be0b-b21c6cce4a0e
+
+	measure 'Delivery Days QoQ %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(
+			                   ISFILTERED('gold dim_date'[full_date]),
+			                   MAX('gold dim_date'[full_date]),
+			                   _anchor_nf
+			               )
+			VAR _q_mo      = (INT((MONTH(_anchor) - 1) / 3)) * 3 + 1
+			VAR _qoq_from  = DATE(YEAR(_anchor), _q_mo, 1)
+			VAR _qoq_to    = _anchor
+			VAR _qoq_pfrom = EDATE(DATE(YEAR(_anchor), _q_mo, 1), -3)
+			VAR _qoq_pto   = EDATE(_anchor, -3)
+			VAR _curr  = CALCULATE([Avg Delivery Days], DATESBETWEEN('gold dim_date'[full_date], _qoq_from,  _qoq_to),  USERELATIONSHIP('gold fact_order_life_cycle'[purchase_date_key], 'gold dim_date'[date_key]))
+			VAR _prior = CALCULATE([Avg Delivery Days], DATESBETWEEN('gold dim_date'[full_date], _qoq_pfrom, _qoq_pto), USERELATIONSHIP('gold fact_order_life_cycle'[purchase_date_key], 'gold dim_date'[date_key]))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: eb714014-3111-4124-ba7c-45fb8652dc54
+
+	measure 'Delivery Days YoY %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(
+			                   ISFILTERED('gold dim_date'[full_date]),
+			                   MAX('gold dim_date'[full_date]),
+			                   _anchor_nf
+			               )
+			VAR _yoy_from  = DATE(YEAR(_anchor), 1, 1)
+			VAR _yoy_to    = _anchor
+			VAR _yoy_pfrom = DATE(YEAR(_anchor) - 1, 1, 1)
+			VAR _yoy_pto   = EDATE(_anchor, -12)
+			VAR _curr  = CALCULATE([Avg Delivery Days], DATESBETWEEN('gold dim_date'[full_date], _yoy_from,  _yoy_to),  USERELATIONSHIP('gold fact_order_life_cycle'[purchase_date_key], 'gold dim_date'[date_key]))
+			VAR _prior = CALCULATE([Avg Delivery Days], DATESBETWEEN('gold dim_date'[full_date], _yoy_pfrom, _yoy_pto), USERELATIONSHIP('gold fact_order_life_cycle'[purchase_date_key], 'gold dim_date'[date_key]))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: a505bfa7-42f3-4186-b918-dcf8de2a5dd7
+
+	measure 'AOV PM' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(
+			                   ISFILTERED('gold dim_date'[full_date]),
+			                   MAX('gold dim_date'[full_date]),
+			                   _anchor_nf
+			               )
+			VAR _mom_from  = DATE(YEAR(_anchor), MONTH(_anchor), 1)
+			VAR _mom_to    = _anchor
+			VAR _mom_pfrom = EDATE(DATE(YEAR(_anchor), MONTH(_anchor), 1), -1)
+			VAR _mom_pto   = EDATE(_anchor, -1)
+			RETURN CALCULATE([AOV], DATESBETWEEN('gold dim_date'[full_date], _mom_pfrom, _mom_pto))
+		formatString: #,##0.00
+		lineageTag: 7c425d68-1737-42fa-97c8-d4cdaa5e36d5
+
+	measure 'AOV PQ' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(
+			                   ISFILTERED('gold dim_date'[full_date]),
+			                   MAX('gold dim_date'[full_date]),
+			                   _anchor_nf
+			               )
+			VAR _q_mo      = (INT((MONTH(_anchor) - 1) / 3)) * 3 + 1
+			VAR _qoq_from  = DATE(YEAR(_anchor), _q_mo, 1)
+			VAR _qoq_to    = _anchor
+			VAR _qoq_pfrom = EDATE(DATE(YEAR(_anchor), _q_mo, 1), -3)
+			VAR _qoq_pto   = EDATE(_anchor, -3)
+			RETURN CALCULATE([AOV], DATESBETWEEN('gold dim_date'[full_date], _qoq_pfrom, _qoq_pto))
+		formatString: #,##0.00
+		lineageTag: 518a4ca3-5849-4360-9ea2-4c5551d2a841
+
+	measure 'AOV PY' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(
+			                   ISFILTERED('gold dim_date'[full_date]),
+			                   MAX('gold dim_date'[full_date]),
+			                   _anchor_nf
+			               )
+			VAR _yoy_from  = DATE(YEAR(_anchor), 1, 1)
+			VAR _yoy_to    = _anchor
+			VAR _yoy_pfrom = DATE(YEAR(_anchor) - 1, 1, 1)
+			VAR _yoy_pto   = EDATE(_anchor, -12)
+			RETURN CALCULATE([AOV], DATESBETWEEN('gold dim_date'[full_date], _yoy_pfrom, _yoy_pto))
+		formatString: #,##0.00
+		lineageTag: 21efd3b4-7f5e-4bd2-b4d2-ddb513d8df9e
+
+	measure 'AOV MoM %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(
+			                   ISFILTERED('gold dim_date'[full_date]),
+			                   MAX('gold dim_date'[full_date]),
+			                   _anchor_nf
+			               )
+			VAR _mom_from  = DATE(YEAR(_anchor), MONTH(_anchor), 1)
+			VAR _mom_to    = _anchor
+			VAR _mom_pfrom = EDATE(DATE(YEAR(_anchor), MONTH(_anchor), 1), -1)
+			VAR _mom_pto   = EDATE(_anchor, -1)
+			VAR _curr  = CALCULATE([AOV], DATESBETWEEN('gold dim_date'[full_date], _mom_from,  _mom_to))
+			VAR _prior = CALCULATE([AOV], DATESBETWEEN('gold dim_date'[full_date], _mom_pfrom, _mom_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: d4e08d85-2d99-494c-a892-2d97582491e8
+
+	measure 'AOV QoQ %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(
+			                   ISFILTERED('gold dim_date'[full_date]),
+			                   MAX('gold dim_date'[full_date]),
+			                   _anchor_nf
+			               )
+			VAR _q_mo      = (INT((MONTH(_anchor) - 1) / 3)) * 3 + 1
+			VAR _qoq_from  = DATE(YEAR(_anchor), _q_mo, 1)
+			VAR _qoq_to    = _anchor
+			VAR _qoq_pfrom = EDATE(DATE(YEAR(_anchor), _q_mo, 1), -3)
+			VAR _qoq_pto   = EDATE(_anchor, -3)
+			VAR _curr  = CALCULATE([AOV], DATESBETWEEN('gold dim_date'[full_date], _qoq_from,  _qoq_to))
+			VAR _prior = CALCULATE([AOV], DATESBETWEEN('gold dim_date'[full_date], _qoq_pfrom, _qoq_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: 00501893-dcf7-4d98-8cb8-a0c6c041951c
+
+	measure 'AOV YoY %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(
+			                   ISFILTERED('gold dim_date'[full_date]),
+			                   MAX('gold dim_date'[full_date]),
+			                   _anchor_nf
+			               )
+			VAR _yoy_from  = DATE(YEAR(_anchor), 1, 1)
+			VAR _yoy_to    = _anchor
+			VAR _yoy_pfrom = DATE(YEAR(_anchor) - 1, 1, 1)
+			VAR _yoy_pto   = EDATE(_anchor, -12)
+			VAR _curr  = CALCULATE([AOV], DATESBETWEEN('gold dim_date'[full_date], _yoy_from,  _yoy_to))
+			VAR _prior = CALCULATE([AOV], DATESBETWEEN('gold dim_date'[full_date], _yoy_pfrom, _yoy_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		lineageTag: fc98b09f-78d5-4e0a-9d59-68af904060fd
+
+		formatStringDefinition = "+0.00;-0.00%;0.00%"
+
+	measure 'Revenue Trend %' = [Revenue YoY %]
+		formatString: 0.0%;-0.0%;0.0%
+		lineageTag: 26e69fd4-64eb-4340-85f9-573b4ff0070f
+
+	measure 'Revenue Trend Arrow' =
+			VAR _pct = [Revenue Trend %]
+			RETURN IF(ISBLANK(_pct), "■", IF(_pct > 0, "▲", IF(_pct < 0, "▼", "■")))
+		lineageTag: 3522b01f-78d2-4c72-b092-9f3593dc5a7e
+
+	measure 'Revenue Trend Color' =
+			VAR _pct = [Revenue Trend %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct > 0, "#22C55E", IF(_pct < 0, "#EF4444", "#808080")))
+		lineageTag: 5adf4eb3-2f04-4868-9e38-fd6e9ac1fbe9
+
+	measure 'Orders Trend %' = [Orders YoY %]
+		formatString: 0.00%
+		lineageTag: b235b502-d20c-494e-afbc-7e893a13c24d
+
+	measure 'Orders Trend Arrow' =
+			VAR _pct = [Orders Trend %]
+			RETURN IF(ISBLANK(_pct), "■", IF(_pct > 0, "▲", IF(_pct < 0, "▼", "■")))
+		lineageTag: 21655c00-4c85-4ab4-9801-14a6a33d0345
+
+	measure 'Orders Trend Color' =
+			VAR _pct = [Orders Trend %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct > 0, "#22C55E", IF(_pct < 0, "#EF4444", "#808080")))
+		lineageTag: 05548322-bfaf-4c0b-8325-b81a93f4813e
+
+	measure 'Customer Trend %' = [Customers YoY %]
+		formatString: 0.00%
+		lineageTag: a81152d5-9666-4b9c-9158-2c164fe28e66
+
+	measure 'Customer Trend Arrow' =
+			VAR _pct = [Customer Trend %]
+			RETURN IF(ISBLANK(_pct), "■", IF(_pct > 0, "▲", IF(_pct < 0, "▼", "■")))
+		lineageTag: 1ca3a9c4-fd51-46bb-81d5-a2cc9b3dbb09
+
+	measure 'Customer Trend Color' =
+			VAR _pct = [Customer Trend %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct > 0, "#22C55E", IF(_pct < 0, "#EF4444", "#808080")))
+		lineageTag: 9a6a9aa7-61f6-46cc-923f-440fa5f6de03
+
+	measure 'Review Score Trend %' = [Review Score YoY %]
+		formatString: 0.00%
+		lineageTag: 9b2d0b8a-abe5-4e69-94e4-f8c43cff67fa
+
+	measure 'Review Score Trend Arrow' =
+			VAR _pct = [Review Score Trend %]
+			RETURN IF(ISBLANK(_pct), "■", IF(_pct > 0, "▲", IF(_pct < 0, "▼", "■")))
+		lineageTag: aafc311f-60c2-4ab3-95cc-3bba186cda3e
+
+	measure 'Review Score Trend Color' =
+			VAR _pct = [Review Score Trend %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct > 0, "#22C55E", IF(_pct < 0, "#EF4444", "#808080")))
+		lineageTag: a92ff489-de73-481f-9cd3-fe23866c7c85
+
+	measure 'Delivery Trend %' = [Delivery Days YoY %]
+		formatString: 0.00%
+		lineageTag: f83505e1-af2f-471b-9914-94be44397059
+
+	measure 'Delivery Trend Arrow' =
+			VAR _pct = [Delivery Trend %]
+			RETURN IF(ISBLANK(_pct), "■", IF(_pct < 0, "▲", IF(_pct > 0, "▼", "■")))
+		lineageTag: 4e0242fe-9641-44aa-90e5-1d9fefb9cdf5
+
+	measure 'Delivery Trend Color' =
+			VAR _pct = [Delivery Trend %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct < 0, "#EF4444", IF(_pct > 0, "#22C55E", "#808080")))
+		lineageTag: fbc5c377-23d8-48a7-a8a9-50b9274cf7de
+
+	measure 'AOV Trend %' = [AOV YoY %]
+		formatString: 0.00%
+		lineageTag: 236995c7-9602-4a59-9a85-61a7500182d2
+
+	measure 'AOV Trend Arrow' =
+			VAR _pct = [AOV Trend %]
+			RETURN IF(ISBLANK(_pct), "■", IF(_pct > 0, "▲", IF(_pct < 0, "▼", "■")))
+		lineageTag: e736b9e9-4f3e-4d58-bdfb-f8e6bc594bf0
+
+	measure 'AOV Trend Color' =
+			VAR _pct = [AOV Trend %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct > 0, "#22C55E", IF(_pct < 0, "#EF4444", "#808080")))
+		lineageTag: 1147f4a2-32a0-4011-a43a-c38b6778d9c2
+
+	measure 'Revenue CAGR' =
+			VAR _firstYearRev =
+			    CALCULATE(
+			        [Total Revenue],
+			        FILTER(
+			            ALL('gold dim_date'),
+			            'gold dim_date'[year] = CALCULATE(MIN('gold dim_date'[year]), ALL('gold dim_date'))
+			        )
+			    )
+			VAR _lastYearRev =
+			    CALCULATE(
+			        [Total Revenue],
+			        FILTER(
+			            ALL('gold dim_date'),
+			            'gold dim_date'[year] = CALCULATE(MAX('gold dim_date'[year]), ALL('gold dim_date'))
+			        )
+			    )
+			VAR _years =
+			    CALCULATE(MAX('gold dim_date'[year]), ALL('gold dim_date')) -
+			    CALCULATE(MIN('gold dim_date'[year]), ALL('gold dim_date'))
+			RETURN IF(_years > 0, POWER(DIVIDE(_lastYearRev, _firstYearRev), DIVIDE(1, _years)) - 1, BLANK())
+		formatString: 0.00%
+		lineageTag: 07826599-9dc6-46f9-9cb1-cb5797f847de
+
+	measure 'Base Forecast' = [Revenue PM] * (1 + [Revenue MoM %])
+		formatString: #,##0.00
+		lineageTag: 90c6a4e9-9400-4991-88d6-3d693ad493c3
+
+	measure 'Optimistic Forecast' = [Base Forecast] * 1.15
+		formatString: #,##0.00
+		lineageTag: 12af21d8-fcf4-404d-813d-4e97910a80b8
+
+	measure 'Pessimistic Forecast' = [Base Forecast] * 0.90
+		formatString: #,##0.00
+		lineageTag: c643605c-3758-49dc-9287-a8c38d2e3923
+
+	measure 'Holiday Revenue' = CALCULATE([Total Revenue], 'gold dim_date'[is_holiday] = TRUE())
+		formatString: #,##0.00
+		lineageTag: 0055a7ac-f70f-4a2c-a6fc-92513097ea9f
+
+	measure 'Non-Holiday Revenue' = CALCULATE([Total Revenue], 'gold dim_date'[is_holiday] = FALSE())
+		formatString: #,##0.00
+		lineageTag: f82bf8f0-2e17-428b-91a8-704397777d92
+
+	measure 'Holiday Revenue per Day' =
+			VAR _holidayDays =
+			    CALCULATE(
+			        COUNTROWS('gold dim_date'),
+			        'gold dim_date'[is_holiday] = TRUE(),
+			        ALL('gold dim_date')
+			    )
+			RETURN DIVIDE([Holiday Revenue], _holidayDays)
+		formatString: #,##0.00
+		lineageTag: 59f380cf-62b7-4872-a36c-6717813ad713
+
+	measure 'Non-Holiday Revenue per Day' =
+			VAR _nonHolidayDays =
+			    CALCULATE(
+			        COUNTROWS('gold dim_date'),
+			        'gold dim_date'[is_holiday] = FALSE(),
+			        ALL('gold dim_date')
+			    )
+			RETURN DIVIDE([Non-Holiday Revenue], _nonHolidayDays)
+		formatString: #,##0.00
+		lineageTag: 55207c44-aa1a-4b66-bdae-3c8f74404103
+
+	measure 'Holiday Lift %' = DIVIDE([Holiday Revenue per Day], [Non-Holiday Revenue per Day]) - 1
+		formatString: 0.00%
+		lineageTag: 244385b1-a975-4160-bc55-ba857a2fe3ba
+
+	measure 'Weekend Order Share' =
+			DIVIDE(
+			    CALCULATE([Total Orders], 'gold dim_date'[is_weekend] = TRUE()),
+			    [Total Orders]
+			)
+		formatString: 0.00%
+		lineageTag: fc97b607-1e9d-472d-b1b3-3debae5efedc
+
+	measure 'AI Insight Revenue' =
+			VAR _yoy     = [Revenue YoY %]
+			VAR _rev     = [Total Revenue]
+			VAR _dir     = IF(_yoy >= 0, "up", "down")
+			VAR _pctFmt  = FORMAT(ABS(_yoy), "0.0%")
+			RETURN
+			    "Revenue is " & _dir & " " & _pctFmt & " YoY. " &
+			    "Total GMV: " & FORMAT(_rev, "#,##0") & ". " &
+			    IF(_yoy > 0.1, "Strong growth trajectory — maintain momentum.",
+			       IF(_yoy < -0.05, "Revenue decline: review category mix and promotions.",
+			          "Stable performance. Monitor AOV for improvement levers."))
+		lineageTag: 9e70549b-86b3-49b9-91c0-4e39588961c5
+
+	measure 'AI Insight Operations' =
+			VAR _delivDays  = [Avg Delivery Days]
+			VAR _onTime     = [On-Time Delivery %]
+			VAR _score      = [Avg Review Score]
+			RETURN
+			    "Avg delivery: " & FORMAT(_delivDays, "0.0") & " days " &
+			    "(" & FORMAT(_onTime, "0%") & " on-time). " &
+			    "Review score: " & FORMAT(_score, "0.00") & "/5. " &
+			    IF(_delivDays > 15, "⚠ Delivery above 15d threshold — logistics review needed.",
+			       IF(_score < 3.8, "⚠ Review score below 3.8 — check fulfilment quality.",
+			          "✓ Operations within acceptable parameters."))
+		lineageTag: 0c70efab-dfd1-4148-a97f-28e5f3321480
+
+	measure 'AI Insight Customer' =
+			VAR _cust        = [Total Customers]
+			VAR _repeatRate  = [Repeat Rate]
+			VAR _custYoY     = [Customers YoY %]
+			RETURN
+			    FORMAT(_cust, "#,##0") & " unique buyers (" &
+			    FORMAT(_custYoY, "+0.0%;-0.0%") & " YoY). " &
+			    "Repeat rate: " & FORMAT(_repeatRate, "0.0%") & ". " &
+			    IF(_repeatRate < 0.05, "⚠ Very low retention — invest in repeat-purchase campaigns.",
+			       IF(_repeatRate > 0.15, "✓ Strong repeat behaviour for ecommerce.",
+			          "Moderate retention. Target 90-day re-engagement window."))
+		lineageTag: 0f3e2877-0385-4e8a-ae1c-a8536123a7d7
+
+	measure 'Reactivation Window' =
+			VAR _repeatTable =
+			    FILTER(
+			        SUMMARIZE(
+			            'gold fact_order_items',
+			            'gold fact_order_items'[customer_sk],
+			            "OrderCount", DISTINCTCOUNT('gold fact_order_items'[order_id_bk]),
+			            "FirstOrderKey", MIN('gold fact_order_items'[purchase_date_key]),
+			            "LastOrderKey",  MAX('gold fact_order_items'[purchase_date_key])
+			        ),
+			        [OrderCount] >= 2
+			    )
+			VAR _avgDays =
+			    AVERAGEX(
+			        _repeatTable,
+			        VAR _firstDate =
+			            LOOKUPVALUE(
+			                'gold dim_date'[full_date],
+			                'gold dim_date'[date_key], [FirstOrderKey]
+			            )
+			        VAR _lastDate =
+			            LOOKUPVALUE(
+			                'gold dim_date'[full_date],
+			                'gold dim_date'[date_key], [LastOrderKey]
+			            )
+			        RETURN DATEDIFF(_firstDate, _lastDate, DAY)
+			    )
+			RETURN _avgDays
+		formatString: #,##0.0
+		lineageTag: 63eb67a5-b5c2-4bce-8fd1-e7649258c3b7
+
+	measure 'New Customers' =
+			CALCULATE(
+			    DISTINCTCOUNT('gold fact_order_items'[customer_sk]),
+			    FILTER(
+			        VALUES('gold fact_order_items'[customer_sk]),
+			        CALCULATE(
+			            DISTINCTCOUNT('gold fact_order_items'[order_id_bk]),
+			            ALL('gold dim_date')
+			        ) = 1
+			    )
+			)
+		formatString: #,##0
+		lineageTag: 7f3073fa-885a-4d45-ba0e-317f7ff65bb6
+
+	measure 'New Customer Revenue' =
+			CALCULATE(
+			    [Total Revenue],
+			    FILTER(
+			        VALUES('gold fact_order_items'[customer_sk]),
+			        CALCULATE(
+			            DISTINCTCOUNT('gold fact_order_items'[order_id_bk]),
+			            ALL('gold dim_date')
+			        ) = 1
+			    )
+			)
+		formatString: #,##0.00
+		lineageTag: a274ca88-8a3f-4fad-82c6-fbcb489dc8de
+
+	measure 'Repeat Customer Revenue' =
+			CALCULATE(
+			    [Total Revenue],
+			    FILTER(
+			        VALUES('gold fact_order_items'[customer_sk]),
+			        CALCULATE(
+			            DISTINCTCOUNT('gold fact_order_items'[order_id_bk]),
+			            ALL('gold dim_date')
+			        ) > 1
+			    )
+			)
+		formatString: #,##0.00
+		lineageTag: 39317cc7-62e9-4fef-9bb4-24562f4cfddb
+
+	measure 'Cohort Size' = DISTINCTCOUNT('gold fact_order_items'[customer_sk])
+		formatString: #,##0
+		lineageTag: eb50a576-6155-48e2-a172-ee5ce8f03356
+
+	measure 'Retention Rate' = DIVIDE([Returning Customers], [Cohort Size])
+		formatString: 0.00%
+		lineageTag: 8eae109f-20ab-4796-bee2-e8e15a9b2281
+
+	measure 'Customers 2-3 Orders' =
+			CALCULATE(
+			    DISTINCTCOUNT('gold fact_order_items'[customer_sk]),
+			    FILTER(
+			        VALUES('gold fact_order_items'[customer_sk]),
+			        VAR _cnt =
+			            CALCULATE(
+			                DISTINCTCOUNT('gold fact_order_items'[order_id_bk]),
+			                ALL('gold dim_date')
+			            )
+			        RETURN _cnt >= 2 && _cnt <= 3
+			    )
+			)
+		formatString: #,##0
+		lineageTag: a1fb0f31-afab-405d-b6f7-80011b3b7554
+
+	measure 'Customers 4+ Orders' =
+			CALCULATE(
+			    DISTINCTCOUNT('gold fact_order_items'[customer_sk]),
+			    FILTER(
+			        VALUES('gold fact_order_items'[customer_sk]),
+			        CALCULATE(
+			            DISTINCTCOUNT('gold fact_order_items'[order_id_bk]),
+			            ALL('gold dim_date')
+			        ) >= 4
+			    )
+			)
+		formatString: #,##0
+		lineageTag: 6452193f-2a23-4124-a897-6988e7debee5
+
+	measure 'Payment Transactions' = COUNTROWS('gold fact_payments')
+		formatString: #,##0
+		lineageTag: 3f113ce5-2359-49f0-90d2-fcf37ac9f0b5
+
+	measure 'Avg Payment Value' = AVERAGE('gold fact_payments'[payment_value])
+		formatString: #,##0.00
+		lineageTag: 8b226fc7-d132-4703-9e46-7df699a3350a
+
+	measure 'Credit Card %' =
+			DIVIDE(
+			    CALCULATE(
+			        COUNTROWS('gold fact_payments'),
+			        'gold dim_payment_type'[payment_type] = "credit_card"
+			    ),
+			    [Payment Transactions]
+			)
+		formatString: 0.00%
+		lineageTag: 1b1838c8-4b26-420d-aeee-d414c6631006
+
+	measure 'Boleto %' =
+			DIVIDE(
+			    CALCULATE(
+			        COUNTROWS('gold fact_payments'),
+			        'gold dim_payment_type'[payment_type] = "boleto"
+			    ),
+			    [Payment Transactions]
+			)
+		formatString: 0.00%
+		lineageTag: 2bbd4b22-38b1-4d0a-969e-c1fcd6a01913
+
+	measure 'Revenue by Payment Type' =
+			CALCULATE(
+			    SUM('gold fact_order_items'[line_total]),
+			    FILTER(
+			        'gold fact_order_items',
+			        'gold fact_order_items'[order_id_bk] IN VALUES('gold fact_payments'[order_id_bk])
+			    )
+			)
+		formatString: #,##0.00
+		lineageTag: eff218a2-f564-4db8-b09e-ce52342cd2fd
+
+	measure 'Avg Value by Payment Type' = AVERAGE('gold fact_payments'[payment_value])
+		formatString: #,##0.00
+		lineageTag: 14ad262d-182f-478a-9729-a551537e22d6
+
+	measure 'Order Count by Installments' = DISTINCTCOUNT('gold fact_payments'[order_id_bk])
+		formatString: #,##0
+		lineageTag: ee9265ae-ab29-4264-b3d6-be1fd9f8cd1c
+
+	measure 'Late Avg Score' =
+			CALCULATE(
+			    [Avg Review Score],
+			    FILTER(
+			        'gold fact_order_life_cycle',
+			        'gold fact_order_life_cycle'[days_delivery_variance] > 0
+			    )
+			)
+		formatString: #,##0.00
+		lineageTag: 6e58c3bc-b6ff-4280-b6f8-11b9e09be0f6
+
+	measure 'OnTime Avg Score' =
+			CALCULATE(
+			    [Avg Review Score],
+			    FILTER(
+			        'gold fact_order_life_cycle',
+			        'gold fact_order_life_cycle'[days_delivery_variance] <= 0
+			    )
+			)
+		formatString: #,##0.00
+		lineageTag: 6883b09a-bd34-4aa5-8aa6-c0d171b8302e
+
+	measure Approved =
+			CALCULATE(
+			    DISTINCTCOUNT('gold fact_order_life_cycle'[order_id_bk]),
+			    'gold dim_order_status'[order_status] IN {"approved", "processing", "invoiced", "shipped", "delivered"}
+			)
+		formatString: #,##0
+		lineageTag: ddf91b39-c968-4041-b799-8583b202e238
+
+	measure 'Top Category' =
+			FIRSTNONBLANK(
+			    TOPN(
+			        1,
+			        VALUES('gold dim_product'[product_category_name]),
+			        [Total Revenue],
+			        DESC
+			    ),
+			    1
+			)
+		lineageTag: 8924a770-93e1-40a5-a249-75fc9eb43801
+
+	measure 'Top Category Share' =
+			VAR _topCat =
+			    FIRSTNONBLANK(
+			        TOPN(1, VALUES('gold dim_product'[product_category_name]), [Total Revenue], DESC),
+			        1
+			    )
+			RETURN
+			    DIVIDE(
+			        CALCULATE([Total Revenue], 'gold dim_product'[product_category_name] = _topCat),
+			        CALCULATE([Total Revenue], ALL('gold dim_product'))
+			    )
+		formatString: 0.00%
+		lineageTag: 90a1f1d7-df7a-4256-b770-1ef539c92edd
+
+	measure 'Categories Above 5pct GMV' =
+			COUNTROWS(
+			    FILTER(
+			        ADDCOLUMNS(
+			            VALUES('gold dim_product'[product_category_name]),
+			            "CatShare", [Category Revenue %]
+			        ),
+			        [CatShare] > 0.05
+			    )
+			)
+		formatString: #,##0
+		lineageTag: af260b98-6c13-484f-9f1c-596af479f58d
+
+	measure 'Category Growth Rate YoY' = DIVIDE([Total Revenue] - [Revenue PY], [Revenue PY])
+		formatString: 0.00%
+		lineageTag: e72ec607-7d72-4d48-900b-fe878f08a518
+
+	measure 'Best Channel' =
+			FIRSTNONBLANK(
+			    TOPN(
+			        1,
+			        VALUES('gold dim_marketing_channel'[origin]),
+			        [Total Deals],
+			        DESC
+			    ),
+			    1
+			)
+		lineageTag: a72951e2-998a-45c7-8429-c9b7dee8ccf9
+
+	measure 'Deals per SDR' =
+			CALCULATE(
+			    [Total Deals],
+			    ALLEXCEPT('gold fact_marketing_funnel', 'gold fact_marketing_funnel'[sdr_id_bk])
+			)
+		formatString: #,##0
+		lineageTag: 0ae21881-9dcd-48b9-9710-f4ffabd7a052
+
+	measure 'Revenue per SDR' =
+			CALCULATE(
+			    SUM('gold fact_marketing_funnel'[declared_monthly_revenue]),
+			    ALLEXCEPT('gold fact_marketing_funnel', 'gold fact_marketing_funnel'[sdr_id_bk])
+			)
+		formatString: #,##0.00
+		lineageTag: 7112402d-8fb2-4636-8973-d2e6d7d5f2eb
+
+	measure 'Peak Month Revenue' =
+			MAXX(
+			    VALUES('gold dim_date'[year_month]),
+			    CALCULATE([Total Revenue])
+			)
+		formatString: #,##0.00
+		lineageTag: beea0995-e935-454f-a34a-68bcf1925f99
+
+	measure 'Weakest Month Revenue' =
+			MINX(
+			    VALUES('gold dim_date'[year_month]),
+			    CALCULATE([Total Revenue])
+			)
+		formatString: #,##0.00
+		lineageTag: 667d35fa-9bc1-419a-8166-4a97936acd55
+
+	measure 'Seller Rank' =
+			RANKX(
+			    ALL('gold dim_seller'[seller_sk]),
+			    [Total Revenue],
+			    ,
+			    DESC,
+			    Dense
+			)
+		formatString: #,##0
+		lineageTag: 1c1b3ee9-265b-47f9-8340-5ae6eb6101fc
+
+	measure 'Active Anomalies' =
+			VAR _delivBreach   = IF([Avg Delivery Days] > 15, 1, 0)
+			VAR _scoreBreach   = IF([Avg Review Score] < 3.8, 1, 0)
+			VAR _cancelBreach  = IF([Cancellation Rate] > 0.05, 1, 0)
+			VAR _revBreach     = IF([Revenue MoM %] < -0.05, 1, 0)
+			RETURN _delivBreach + _scoreBreach + _cancelBreach + _revBreach
+		formatString: #,##0
+		lineageTag: f7b0a227-efd0-40b2-a820-da5f3fb0eb0d
+
+	measure 'Composite Risk Score' =
+			VAR _delivScore   = MIN(([Avg Delivery Days] - [Delivery Target]) / [Delivery Target] * 100, 100)
+			VAR _scoreRisk    = MAX((4.0 - [Avg Review Score]) / 4.0 * 100, 0)
+			VAR _cancelScore  = MIN([Cancellation Rate] / 0.05 * 100, 100)
+			VAR _weighted     = (_delivScore * 0.4) + (_scoreRisk * 0.35) + (_cancelScore * 0.25)
+			RETURN ROUND(_weighted, 1)
+		formatString: #,##0.0
+		lineageTag: 588cd331-d41b-4b06-aa45-229a86768f56
+
+	measure 'Revenue Growth Rate' = [Revenue MoM %]
+		formatString: 0.00%
+		lineageTag: 660a9b15-c9f0-4993-b792-809290b6beb3
+
+	measure 'Product Category Count' = DISTINCTCOUNT('gold dim_product'[product_category_name])
+		formatString: #,##0
+		lineageTag: 2299adeb-f718-45f9-83ae-ce74c5fcf074
+
+	measure 'Avg Description Length' = AVERAGE('gold dim_product'[product_description_length])
+		formatString: #,##0
+		lineageTag: 053add35-0e85-491b-94ae-e19b13f368d0
+
+	measure 'Top Category Revenue' =
+			MAXX(
+			    VALUES('gold dim_product'[product_category_name]),
+			    CALCULATE([Total Revenue])
+			)
+		formatString: #,##0.00
+		lineageTag: 11f05e6a-e2cf-4301-8d7a-e59437f06dc7
+
+	measure 'Category Rank Change YoY' =
+			VAR _currentRank = [Category Rank]
+			VAR _priorRank   =
+			    CALCULATE(
+			        [Category Rank],
+			        SAMEPERIODLASTYEAR('gold dim_date'[full_date])
+			    )
+			RETURN
+			    IF(
+			        NOT ISBLANK(_currentRank) && NOT ISBLANK(_priorRank),
+			        _priorRank - _currentRank,
+			        BLANK()
+			    )
+		formatString: #,##0
+		lineageTag: 8db60359-80f3-42b1-9b1a-0155036f44d0
+
+	measure 'Forecast Periods' = 3
+		formatString: #,##0
+		lineageTag: 98c5c3bd-c54e-4c05-a786-4924d0d46764
+
+	measure 'YTD Revenue' =
+			CALCULATE(
+			    [Total Revenue],
+			    DATESYTD('gold dim_date'[full_date])
+			)
+		formatString: #,##0.00
+		lineageTag: 9f126dfa-0b7c-4d98-a920-0838d28bbf92
+
+	measure 'Returning Customers' = [Repeat Customers]
+		formatString: #,##0
+		lineageTag: f7841b67-1c3f-4e5b-afba-47b439e8b6fd
+
+	measure 'Delivery Days MoM %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(
+			                   ISFILTERED('gold dim_date'[full_date]),
+			                   MAX('gold dim_date'[full_date]),
+			                   _anchor_nf
+			               )
+			VAR _mom_from  = DATE(YEAR(_anchor), MONTH(_anchor), 1)
+			VAR _mom_to    = _anchor
+			VAR _mom_pfrom = EDATE(DATE(YEAR(_anchor), MONTH(_anchor), 1), -1)
+			VAR _mom_pto   = EDATE(_anchor, -1)
+			VAR _curr  = CALCULATE([Avg Delivery Days], DATESBETWEEN('gold dim_date'[full_date], _mom_from,  _mom_to),  USERELATIONSHIP('gold fact_order_life_cycle'[purchase_date_key], 'gold dim_date'[date_key]))
+			VAR _prior = CALCULATE([Avg Delivery Days], DATESBETWEEN('gold dim_date'[full_date], _mom_pfrom, _mom_pto), USERELATIONSHIP('gold fact_order_life_cycle'[purchase_date_key], 'gold dim_date'[date_key]))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: a1b2c3d4-e5f6-7890-abcd-ef1234567801
+
+	measure 'Review Score MoM %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(
+			                   ISFILTERED('gold dim_date'[full_date]),
+			                   MAX('gold dim_date'[full_date]),
+			                   _anchor_nf
+			               )
+			VAR _mom_from  = DATE(YEAR(_anchor), MONTH(_anchor), 1)
+			VAR _mom_to    = _anchor
+			VAR _mom_pfrom = EDATE(DATE(YEAR(_anchor), MONTH(_anchor), 1), -1)
+			VAR _mom_pto   = EDATE(_anchor, -1)
+			VAR _curr  = CALCULATE([Avg Review Score], DATESBETWEEN('gold dim_date'[full_date], _mom_from,  _mom_to))
+			VAR _prior = CALCULATE([Avg Review Score], DATESBETWEEN('gold dim_date'[full_date], _mom_pfrom, _mom_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: a1b2c3d4-e5f6-7890-abcd-ef1234567802
+
+	measure 'Revenue per Customer YoY %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(
+			                   ISFILTERED('gold dim_date'[full_date]),
+			                   MAX('gold dim_date'[full_date]),
+			                   _anchor_nf
+			               )
+			VAR _yoy_from  = DATE(YEAR(_anchor), 1, 1)
+			VAR _yoy_to    = _anchor
+			VAR _yoy_pfrom = DATE(YEAR(_anchor) - 1, 1, 1)
+			VAR _yoy_pto   = EDATE(_anchor, -12)
+			VAR _curr  = CALCULATE([Revenue per Customer], DATESBETWEEN('gold dim_date'[full_date], _yoy_from,  _yoy_to))
+			VAR _prior = CALCULATE([Revenue per Customer], DATESBETWEEN('gold dim_date'[full_date], _yoy_pfrom, _yoy_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		lineageTag: a1b2c3d4-e5f6-7890-abcd-ef1234567803
+
+		formatStringDefinition = "+0.00%;-0.00%;0.00%"
+
+	measure 'Revenue per Customer Trend Color' =
+			VAR _pct = [Revenue per Customer YoY %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct > 0, "#22C55E", IF(_pct < 0, "#EF4444", "#808080")))
+		lineageTag: a1b2c3d4-e5f6-7890-abcd-ef1234567804
+
+	measure 'Min Date' = CALCULATE(MIN('gold dim_date'[full_date]), ALL('gold dim_date'))
+		formatString: General Date
+		lineageTag: a1b2c3d4-e5f6-7890-abcd-ef1234567805
+
+	measure 'Fulfillment Trend %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(
+			                   ISFILTERED('gold dim_date'[full_date]),
+			                   MAX('gold dim_date'[full_date]),
+			                   _anchor_nf
+			               )
+			VAR _mom_from  = DATE(YEAR(_anchor), MONTH(_anchor), 1)
+			VAR _mom_to    = _anchor
+			VAR _mom_pfrom = EDATE(DATE(YEAR(_anchor), MONTH(_anchor), 1), -1)
+			VAR _mom_pto   = EDATE(_anchor, -1)
+			VAR _curr  = CALCULATE([Fulfillment Rate], DATESBETWEEN('gold dim_date'[full_date], _mom_from,  _mom_to))
+			VAR _prior = CALCULATE([Fulfillment Rate], DATESBETWEEN('gold dim_date'[full_date], _mom_pfrom, _mom_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: a1b2c3d4-e5f6-7890-abcd-ef1234567806
+
+	measure 'Cancellation Trend %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(
+			                   ISFILTERED('gold dim_date'[full_date]),
+			                   MAX('gold dim_date'[full_date]),
+			                   _anchor_nf
+			               )
+			VAR _mom_from  = DATE(YEAR(_anchor), MONTH(_anchor), 1)
+			VAR _mom_to    = _anchor
+			VAR _mom_pfrom = EDATE(DATE(YEAR(_anchor), MONTH(_anchor), 1), -1)
+			VAR _mom_pto   = EDATE(_anchor, -1)
+			VAR _curr  = CALCULATE([Cancellation Rate], DATESBETWEEN('gold dim_date'[full_date], _mom_from,  _mom_to))
+			VAR _prior = CALCULATE([Cancellation Rate], DATESBETWEEN('gold dim_date'[full_date], _mom_pfrom, _mom_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: a1b2c3d4-e5f6-7890-abcd-ef1234567807
+
+	measure 'On-Time Delivery Trend %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(
+			                   ISFILTERED('gold dim_date'[full_date]),
+			                   MAX('gold dim_date'[full_date]),
+			                   _anchor_nf
+			               )
+			VAR _mom_from  = DATE(YEAR(_anchor), MONTH(_anchor), 1)
+			VAR _mom_to    = _anchor
+			VAR _mom_pfrom = EDATE(DATE(YEAR(_anchor), MONTH(_anchor), 1), -1)
+			VAR _mom_pto   = EDATE(_anchor, -1)
+			VAR _curr  = CALCULATE([On-Time Delivery %], DATESBETWEEN('gold dim_date'[full_date], _mom_from,  _mom_to))
+			VAR _prior = CALCULATE([On-Time Delivery %], DATESBETWEEN('gold dim_date'[full_date], _mom_pfrom, _mom_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		lineageTag: a1b2c3d4-e5f6-7890-abcd-ef1234567808
+
+		formatStringDefinition = "+0.00%;-0.00%;0.00%"
+
+	measure 'MQL Trend %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(
+			                   ISFILTERED('gold dim_date'[full_date]),
+			                   MAX('gold dim_date'[full_date]),
+			                   _anchor_nf
+			               )
+			VAR _mom_from  = DATE(YEAR(_anchor), MONTH(_anchor), 1)
+			VAR _mom_to    = _anchor
+			VAR _mom_pfrom = EDATE(DATE(YEAR(_anchor), MONTH(_anchor), 1), -1)
+			VAR _mom_pto   = EDATE(_anchor, -1)
+			VAR _curr  = CALCULATE([Total MQLs], DATESBETWEEN('gold dim_date'[full_date], _mom_from,  _mom_to))
+			VAR _prior = CALCULATE([Total MQLs], DATESBETWEEN('gold dim_date'[full_date], _mom_pfrom, _mom_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: a1b2c3d4-e5f6-7890-abcd-ef1234567809
+
+	measure 'MQL Conversion Rate MoM %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(
+			                   ISFILTERED('gold dim_date'[full_date]),
+			                   MAX('gold dim_date'[full_date]),
+			                   _anchor_nf
+			               )
+			VAR _mom_from  = DATE(YEAR(_anchor), MONTH(_anchor), 1)
+			VAR _mom_to    = _anchor
+			VAR _mom_pfrom = EDATE(DATE(YEAR(_anchor), MONTH(_anchor), 1), -1)
+			VAR _mom_pto   = EDATE(_anchor, -1)
+			VAR _curr  = CALCULATE([MQL Conversion Rate], DATESBETWEEN('gold dim_date'[full_date], _mom_from,  _mom_to))
+			VAR _prior = CALCULATE([MQL Conversion Rate], DATESBETWEEN('gold dim_date'[full_date], _mom_pfrom, _mom_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: a1b2c3d4-e5f6-7890-abcd-ef1234567810
+
+	measure 'Category Avg Score MoM %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(
+			                   ISFILTERED('gold dim_date'[full_date]),
+			                   MAX('gold dim_date'[full_date]),
+			                   _anchor_nf
+			               )
+			VAR _mom_from  = DATE(YEAR(_anchor), MONTH(_anchor), 1)
+			VAR _mom_to    = _anchor
+			VAR _mom_pfrom = EDATE(DATE(YEAR(_anchor), MONTH(_anchor), 1), -1)
+			VAR _mom_pto   = EDATE(_anchor, -1)
+			VAR _curr  = CALCULATE([Category Avg Score], DATESBETWEEN('gold dim_date'[full_date], _mom_from,  _mom_to))
+			VAR _prior = CALCULATE([Category Avg Score], DATESBETWEEN('gold dim_date'[full_date], _mom_pfrom, _mom_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: a1b2c3d4-e5f6-7890-abcd-ef1234567811
+
+	measure 'Categories Above 5pct GMV YoY %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(
+			                   ISFILTERED('gold dim_date'[full_date]),
+			                   MAX('gold dim_date'[full_date]),
+			                   _anchor_nf
+			               )
+			VAR _yoy_from  = DATE(YEAR(_anchor), 1, 1)
+			VAR _yoy_to    = _anchor
+			VAR _yoy_pfrom = DATE(YEAR(_anchor) - 1, 1, 1)
+			VAR _yoy_pto   = EDATE(_anchor, -12)
+			VAR _curr  = CALCULATE([Categories Above 5pct GMV], DATESBETWEEN('gold dim_date'[full_date], _yoy_from,  _yoy_to))
+			VAR _prior = CALCULATE([Categories Above 5pct GMV], DATESBETWEEN('gold dim_date'[full_date], _yoy_pfrom, _yoy_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: a1b2c3d4-e5f6-7890-abcd-ef1234567812
+
+	measure 'Avg Days to Close MoM %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(
+			                   ISFILTERED('gold dim_date'[full_date]),
+			                   MAX('gold dim_date'[full_date]),
+			                   _anchor_nf
+			               )
+			VAR _mom_from  = DATE(YEAR(_anchor), MONTH(_anchor), 1)
+			VAR _mom_to    = _anchor
+			VAR _mom_pfrom = EDATE(DATE(YEAR(_anchor), MONTH(_anchor), 1), -1)
+			VAR _mom_pto   = EDATE(_anchor, -1)
+			VAR _curr  = CALCULATE([Avg Days to Close], DATESBETWEEN('gold dim_date'[full_date], _mom_from,  _mom_to))
+			VAR _prior = CALCULATE([Avg Days to Close], DATESBETWEEN('gold dim_date'[full_date], _mom_pfrom, _mom_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: a1b2c3d4-e5f6-7890-abcd-ef1234567813
+
+	measure 'Avg Declared Monthly Revenue MoM %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(
+			                   ISFILTERED('gold dim_date'[full_date]),
+			                   MAX('gold dim_date'[full_date]),
+			                   _anchor_nf
+			               )
+			VAR _mom_from  = DATE(YEAR(_anchor), MONTH(_anchor), 1)
+			VAR _mom_to    = _anchor
+			VAR _mom_pfrom = EDATE(DATE(YEAR(_anchor), MONTH(_anchor), 1), -1)
+			VAR _mom_pto   = EDATE(_anchor, -1)
+			VAR _curr  = CALCULATE([Avg Declared Monthly Revenue], DATESBETWEEN('gold dim_date'[full_date], _mom_from,  _mom_to))
+			VAR _prior = CALCULATE([Avg Declared Monthly Revenue], DATESBETWEEN('gold dim_date'[full_date], _mom_pfrom, _mom_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: a1b2c3d4-e5f6-7890-abcd-ef1234567814
+
+	measure 'Payment Value MoM %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(
+			                   ISFILTERED('gold dim_date'[full_date]),
+			                   MAX('gold dim_date'[full_date]),
+			                   _anchor_nf
+			               )
+			VAR _mom_from  = DATE(YEAR(_anchor), MONTH(_anchor), 1)
+			VAR _mom_to    = _anchor
+			VAR _mom_pfrom = EDATE(DATE(YEAR(_anchor), MONTH(_anchor), 1), -1)
+			VAR _mom_pto   = EDATE(_anchor, -1)
+			VAR _curr  = CALCULATE([Total Payment Value], DATESBETWEEN('gold dim_date'[full_date], _mom_from,  _mom_to))
+			VAR _prior = CALCULATE([Total Payment Value], DATESBETWEEN('gold dim_date'[full_date], _mom_pfrom, _mom_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: a1b2c3d4-e5f6-7890-abcd-ef1234567815
+
+	measure 'Revenue per Seller YoY %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(
+			                   ISFILTERED('gold dim_date'[full_date]),
+			                   MAX('gold dim_date'[full_date]),
+			                   _anchor_nf
+			               )
+			VAR _yoy_from  = DATE(YEAR(_anchor), 1, 1)
+			VAR _yoy_to    = _anchor
+			VAR _yoy_pfrom = DATE(YEAR(_anchor) - 1, 1, 1)
+			VAR _yoy_pto   = EDATE(_anchor, -12)
+			VAR _curr  = CALCULATE([Revenue per Seller], DATESBETWEEN('gold dim_date'[full_date], _yoy_from,  _yoy_to))
+			VAR _prior = CALCULATE([Revenue per Seller], DATESBETWEEN('gold dim_date'[full_date], _yoy_pfrom, _yoy_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: a1b2c3d4-e5f6-7890-abcd-ef1234567816
+
+	measure 'Avg Orders per Customer MoM %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(
+			                   ISFILTERED('gold dim_date'[full_date]),
+			                   MAX('gold dim_date'[full_date]),
+			                   _anchor_nf
+			               )
+			VAR _mom_from  = DATE(YEAR(_anchor), MONTH(_anchor), 1)
+			VAR _mom_to    = _anchor
+			VAR _mom_pfrom = EDATE(DATE(YEAR(_anchor), MONTH(_anchor), 1), -1)
+			VAR _mom_pto   = EDATE(_anchor, -1)
+			VAR _curr  = CALCULATE([Avg Orders per Customer], DATESBETWEEN('gold dim_date'[full_date], _mom_from,  _mom_to))
+			VAR _prior = CALCULATE([Avg Orders per Customer], DATESBETWEEN('gold dim_date'[full_date], _mom_pfrom, _mom_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: a1b2c3d4-e5f6-7890-abcd-ef1234567817
+
+	measure '1-Star Rate PM' =
+			
+			CALCULATE(
+			    [1-Star Rate],
+			    DATEADD('gold dim_date'[full_date], -1, MONTH)
+			)
+		lineageTag: 99384f14-bb58-49b2-874d-f1d070f258a6
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure '1-Star Rate MoM %' =
+			
+			DIVIDE(
+			    [1-Star Rate] - [1-Star Rate PM],
+			    [1-Star Rate PM]
+			)
+		formatString: 0.00%;-0.00%;0.00%
+		lineageTag: 7a41f561-4578-49b8-a508-6418675b1519
+
+	measure '1-Star Rate Trend Color' =
+			VAR _pct = [1-Star Rate MoM %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct < 0, "#22C55E", IF(_pct > 0, "#EF4444", "#808080")))
+		lineageTag: f5af9a48-531c-4e52-82df-1a02a2ef448b
+
+	measure '5-Star Rate PM' =
+			CALCULATE(
+			    [5-Star Rate],
+			    DATEADD('gold dim_date'[full_date], -1, MONTH)
+			)
+		lineageTag: 7f9b372e-40e1-4757-9a9c-8cf39ee7d0be
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure '5-Star Rate MoM %' =
+			
+			DIVIDE(
+			    [5-Star Rate] - [5-Star Rate PM],
+			    [5-Star Rate PM]
+			)
+		lineageTag: 87fb61e7-63f4-4315-a1c8-557087a2c432
+
+		formatStringDefinition = "+0.00%;-0.00%;0.00%"
+
+	measure '5-Star Rate Trend Color' =
+			VAR _pct = [5-Star Rate MoM %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct > 0, "#22C55E", IF(_pct < 0, "#EF4444", "#808080")))
+		lineageTag: 57d1ed56-3974-4bef-86d7-4a202afd18ec
+
+	measure 'Reviews with Comments PM' =
+			
+			CALCULATE(
+			    [Reviews with Comments],
+			    DATEADD('gold dim_date'[full_date], -1, MONTH)
+			)
+		lineageTag: 0c3fe89d-5bf0-4fda-901c-87156bdf585a
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Reviews with Comments MoM %' =
+			
+			DIVIDE(
+			    [Reviews with Comments] - [Reviews with Comments PM],
+			    [Reviews with Comments PM]
+			)
+		lineageTag: 3d9b9397-695a-44e1-9421-d2103738f466
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Reviews with Comments Trend Color' =
+			VAR _pct = [Reviews with Comments MoM %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct > 0, "#22C55E", IF(_pct < 0, "#EF4444", "#808080")))
+		lineageTag: f08db6bd-f82d-4f8b-8403-f18140829d8d
+
+	measure 'Repeat Customers PQ' =
+			CALCULATE(
+			    [Repeat Customers],
+			    DATEADD('gold dim_date'[full_date], -1, QUARTER)
+			)
+		formatString: 0
+		lineageTag: 00a71844-0d4b-481b-a127-80fa25fd7077
+
+	measure 'Repeat Customers QoQ %' =
+			
+			DIVIDE(
+			    [Repeat Customers] - [Repeat Customers PQ],
+			    [Repeat Customers PQ]
+			)
+		lineageTag: 60132ca9-d65c-4b7e-9bc6-6ef0093325fc
+
+		formatStringDefinition = "+0.00%;-0.00%;0.00%"
+
+	measure 'Repeat Customers Trend Color' =
+			VAR _pct = [Repeat Customers QoQ %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct > 0, "#22C55E", IF(_pct < 0, "#EF4444", "#808080")))
+		lineageTag: 20884296-6bdc-4ab8-b288-a600f8c65ac9
+
+	measure 'Repeat Customer Revenue PY' =
+			
+			CALCULATE(
+			    [Repeat Customer Revenue],
+			    DATEADD('gold dim_date'[full_date], -1, YEAR)
+			)
+		lineageTag: 935dc14d-864b-49a9-a3d6-c7fa1f84a313
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Repeat Customer Revenue YoY %' =
+			
+			DIVIDE(
+			    [Repeat Customer Revenue] - [Repeat Customer Revenue PY],
+			    [Repeat Customer Revenue PY]
+			)
+		lineageTag: 4bf3d784-27c7-4706-974c-679de01aa135
+
+		formatStringDefinition = "+0.00%;-0.00%;0.00%"
+
+	measure 'Repeat Customers REV Trend Color' =
+			VAR _pct = [Repeat Customer Revenue YoY %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct > 0, "#22C55E", IF(_pct < 0, "#EF4444", "#808080")))
+		lineageTag: d44c0749-8b2c-453c-b899-74032cd05af3
+
+	measure 'ON TIME Delivery Trend Color' =
+			VAR _pct = [On-Time Delivery Trend %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct < 0, "#EF4444", IF(_pct > 0, "#22C55E", "#808080")))
+		lineageTag: 30bda77d-bcc6-4812-91de-6c7dfaa5399c
+
+	measure 'Review Score MoM Trend Color' =
+			VAR _pct = [Review Score MoM %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct > 0, "#22C55E", IF(_pct < 0, "#EF4444", "#808080")))
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000106
+
+	measure 'Repeat Rate MoM %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(ISFILTERED('gold dim_date'[full_date]), MAX('gold dim_date'[full_date]), _anchor_nf)
+			VAR _mom_from  = DATE(YEAR(_anchor), MONTH(_anchor), 1)
+			VAR _mom_to    = _anchor
+			VAR _mom_pfrom = EDATE(DATE(YEAR(_anchor), MONTH(_anchor), 1), -1)
+			VAR _mom_pto   = EDATE(_anchor, -1)
+			VAR _curr  = CALCULATE([Repeat Rate], DATESBETWEEN('gold dim_date'[full_date], _mom_from, _mom_to))
+			VAR _prior = CALCULATE([Repeat Rate], DATESBETWEEN('gold dim_date'[full_date], _mom_pfrom, _mom_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000111
+
+	measure 'Repeat Rate Trend Color' =
+			VAR _pct = [Repeat Rate MoM %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct > 0, "#22C55E", IF(_pct < 0, "#EF4444", "#808080")))
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000112
+
+	measure 'Avg Orders per Customer Trend Color' =
+			VAR _pct = [Avg Orders per Customer MoM %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct > 0, "#22C55E", IF(_pct < 0, "#EF4444", "#808080")))
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000113
+
+	measure 'Reactivation Window MoM %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(ISFILTERED('gold dim_date'[full_date]), MAX('gold dim_date'[full_date]), _anchor_nf)
+			VAR _mom_from  = DATE(YEAR(_anchor), MONTH(_anchor), 1)
+			VAR _mom_to    = _anchor
+			VAR _mom_pfrom = EDATE(DATE(YEAR(_anchor), MONTH(_anchor), 1), -1)
+			VAR _mom_pto   = EDATE(_anchor, -1)
+			VAR _curr  = CALCULATE([Reactivation Window], DATESBETWEEN('gold dim_date'[full_date], _mom_from, _mom_to))
+			VAR _prior = CALCULATE([Reactivation Window], DATESBETWEEN('gold dim_date'[full_date], _mom_pfrom, _mom_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000114
+
+	measure 'Reactivation Window Trend Color' =
+			VAR _pct = [Reactivation Window MoM %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct < 0, "#22C55E", IF(_pct > 0, "#EF4444", "#808080")))
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000115
+
+	measure 'Delivery Days MoM Trend Color' =
+			VAR _pct = [Delivery Days MoM %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct < 0, "#22C55E", IF(_pct > 0, "#EF4444", "#808080")))
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000117
+
+	measure 'Avg Days to Ship MoM %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(ISFILTERED('gold dim_date'[full_date]), MAX('gold dim_date'[full_date]), _anchor_nf)
+			VAR _mom_from  = DATE(YEAR(_anchor), MONTH(_anchor), 1)
+			VAR _mom_to    = _anchor
+			VAR _mom_pfrom = EDATE(DATE(YEAR(_anchor), MONTH(_anchor), 1), -1)
+			VAR _mom_pto   = EDATE(_anchor, -1)
+			VAR _curr  = CALCULATE([Avg Days to Ship], DATESBETWEEN('gold dim_date'[full_date], _mom_from, _mom_to), USERELATIONSHIP('gold fact_order_life_cycle'[purchase_date_key], 'gold dim_date'[date_key]))
+			VAR _prior = CALCULATE([Avg Days to Ship], DATESBETWEEN('gold dim_date'[full_date], _mom_pfrom, _mom_pto), USERELATIONSHIP('gold fact_order_life_cycle'[purchase_date_key], 'gold dim_date'[date_key]))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000118
+
+	measure 'Avg Days to Ship Trend Color' =
+			VAR _pct = [Avg Days to Ship MoM %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct < 0, "#22C55E", IF(_pct > 0, "#EF4444", "#808080")))
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000119
+
+	measure 'Avg Days Carrier to Delivery MoM %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(ISFILTERED('gold dim_date'[full_date]), MAX('gold dim_date'[full_date]), _anchor_nf)
+			VAR _mom_from  = DATE(YEAR(_anchor), MONTH(_anchor), 1)
+			VAR _mom_to    = _anchor
+			VAR _mom_pfrom = EDATE(DATE(YEAR(_anchor), MONTH(_anchor), 1), -1)
+			VAR _mom_pto   = EDATE(_anchor, -1)
+			VAR _curr  = CALCULATE([Avg Days Carrier to Delivery], DATESBETWEEN('gold dim_date'[full_date], _mom_from, _mom_to), USERELATIONSHIP('gold fact_order_life_cycle'[purchase_date_key], 'gold dim_date'[date_key]))
+			VAR _prior = CALCULATE([Avg Days Carrier to Delivery], DATESBETWEEN('gold dim_date'[full_date], _mom_pfrom, _mom_pto), USERELATIONSHIP('gold fact_order_life_cycle'[purchase_date_key], 'gold dim_date'[date_key]))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000120
+
+	measure 'Avg Days Carrier to Delivery Trend Color' =
+			VAR _pct = [Avg Days Carrier to Delivery MoM %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct < 0, "#22C55E", IF(_pct > 0, "#EF4444", "#808080")))
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000121
+
+	measure 'States Active YoY %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(ISFILTERED('gold dim_date'[full_date]), MAX('gold dim_date'[full_date]), _anchor_nf)
+			VAR _yoy_from  = DATE(YEAR(_anchor), 1, 1)
+			VAR _yoy_to    = _anchor
+			VAR _yoy_pfrom = DATE(YEAR(_anchor) - 1, 1, 1)
+			VAR _yoy_pto   = EDATE(_anchor, -12)
+			VAR _curr  = CALCULATE([States Active], DATESBETWEEN('gold dim_date'[full_date], _yoy_from, _yoy_to))
+			VAR _prior = CALCULATE([States Active], DATESBETWEEN('gold dim_date'[full_date], _yoy_pfrom, _yoy_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000122
+
+	measure 'States Active Trend Color' =
+			VAR _pct = [States Active YoY %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct > 0, "#22C55E", IF(_pct < 0, "#EF4444", "#808080")))
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000123
+
+	measure 'SP Revenue Share YoY %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(ISFILTERED('gold dim_date'[full_date]), MAX('gold dim_date'[full_date]), _anchor_nf)
+			VAR _yoy_from  = DATE(YEAR(_anchor), 1, 1)
+			VAR _yoy_to    = _anchor
+			VAR _yoy_pfrom = DATE(YEAR(_anchor) - 1, 1, 1)
+			VAR _yoy_pto   = EDATE(_anchor, -12)
+			VAR _curr  = CALCULATE([SP Revenue Share], DATESBETWEEN('gold dim_date'[full_date], _yoy_from, _yoy_to))
+			VAR _prior = CALCULATE([SP Revenue Share], DATESBETWEEN('gold dim_date'[full_date], _yoy_pfrom, _yoy_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000124
+
+		formatStringDefinition = "+0.00%;-0.00%;0.00%"
+
+	measure 'SP Revenue Share Trend Color' =
+			VAR _pct = [SP Revenue Share YoY %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct > 0, "#22C55E", IF(_pct < 0, "#EF4444", "#808080")))
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000125
+
+	measure 'North Region Delivery MoM %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(ISFILTERED('gold dim_date'[full_date]), MAX('gold dim_date'[full_date]), _anchor_nf)
+			VAR _mom_from  = DATE(YEAR(_anchor), MONTH(_anchor), 1)
+			VAR _mom_to    = _anchor
+			VAR _mom_pfrom = EDATE(DATE(YEAR(_anchor), MONTH(_anchor), 1), -1)
+			VAR _mom_pto   = EDATE(_anchor, -1)
+			VAR _curr  = CALCULATE([North Region Delivery], DATESBETWEEN('gold dim_date'[full_date], _mom_from, _mom_to), USERELATIONSHIP('gold fact_order_life_cycle'[purchase_date_key], 'gold dim_date'[date_key]))
+			VAR _prior = CALCULATE([North Region Delivery], DATESBETWEEN('gold dim_date'[full_date], _mom_pfrom, _mom_pto), USERELATIONSHIP('gold fact_order_life_cycle'[purchase_date_key], 'gold dim_date'[date_key]))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000126
+
+		formatStringDefinition = "+0.00%;-0.00%;0.00%"
+
+	measure 'North Region Delivery Trend Color' =
+			VAR _pct = [North Region Delivery MoM %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct < 0, "#22C55E", IF(_pct > 0, "#EF4444", "#808080")))
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000127
+
+	measure 'Fulfillment Rate Trend Color' =
+			VAR _pct = [Fulfillment Trend %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct > 0, "#22C55E", IF(_pct < 0, "#EF4444", "#808080")))
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000128
+
+	measure 'Cancellation Rate Trend Color' =
+			VAR _pct = [Cancellation Trend %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct < 0, "#22C55E", IF(_pct > 0, "#EF4444", "#808080")))
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000129
+
+	measure 'Avg Days to Approve MoM %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(ISFILTERED('gold dim_date'[full_date]), MAX('gold dim_date'[full_date]), _anchor_nf)
+			VAR _mom_from  = DATE(YEAR(_anchor), MONTH(_anchor), 1)
+			VAR _mom_to    = _anchor
+			VAR _mom_pfrom = EDATE(DATE(YEAR(_anchor), MONTH(_anchor), 1), -1)
+			VAR _mom_pto   = EDATE(_anchor, -1)
+			VAR _curr  = CALCULATE([Avg Days to Approve], DATESBETWEEN('gold dim_date'[full_date], _mom_from, _mom_to), USERELATIONSHIP('gold fact_order_life_cycle'[purchase_date_key], 'gold dim_date'[date_key]))
+			VAR _prior = CALCULATE([Avg Days to Approve], DATESBETWEEN('gold dim_date'[full_date], _mom_pfrom, _mom_pto), USERELATIONSHIP('gold fact_order_life_cycle'[purchase_date_key], 'gold dim_date'[date_key]))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000130
+
+	measure 'Avg Days to Approve Trend Color' =
+			VAR _pct = [Avg Days to Approve MoM %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct < 0, "#22C55E", IF(_pct > 0, "#EF4444", "#808080")))
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000131
+
+	measure 'Delivered Orders YoY %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(ISFILTERED('gold dim_date'[full_date]), MAX('gold dim_date'[full_date]), _anchor_nf)
+			VAR _yoy_from  = DATE(YEAR(_anchor), 1, 1)
+			VAR _yoy_to    = _anchor
+			VAR _yoy_pfrom = DATE(YEAR(_anchor) - 1, 1, 1)
+			VAR _yoy_pto   = EDATE(_anchor, -12)
+			VAR _curr  = CALCULATE([Delivered Orders], DATESBETWEEN('gold dim_date'[full_date], _yoy_from, _yoy_to))
+			VAR _prior = CALCULATE([Delivered Orders], DATESBETWEEN('gold dim_date'[full_date], _yoy_pfrom, _yoy_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000132
+
+	measure 'Delivered Orders Trend Color' =
+			VAR _pct = [Delivered Orders YoY %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct > 0, "#22C55E", IF(_pct < 0, "#EF4444", "#808080")))
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000133
+
+	measure 'Cancelled Orders MoM %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(ISFILTERED('gold dim_date'[full_date]), MAX('gold dim_date'[full_date]), _anchor_nf)
+			VAR _mom_from  = DATE(YEAR(_anchor), MONTH(_anchor), 1)
+			VAR _mom_to    = _anchor
+			VAR _mom_pfrom = EDATE(DATE(YEAR(_anchor), MONTH(_anchor), 1), -1)
+			VAR _mom_pto   = EDATE(_anchor, -1)
+			VAR _curr  = CALCULATE([Cancelled Orders], DATESBETWEEN('gold dim_date'[full_date], _mom_from, _mom_to))
+			VAR _prior = CALCULATE([Cancelled Orders], DATESBETWEEN('gold dim_date'[full_date], _mom_pfrom, _mom_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000134
+
+	measure 'Cancelled Orders Trend Color' =
+			VAR _pct = [Cancelled Orders MoM %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct < 0, "#22C55E", IF(_pct > 0, "#EF4444", "#808080")))
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000135
+
+	measure 'Unavailable Orders MoM %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(ISFILTERED('gold dim_date'[full_date]), MAX('gold dim_date'[full_date]), _anchor_nf)
+			VAR _mom_from  = DATE(YEAR(_anchor), MONTH(_anchor), 1)
+			VAR _mom_to    = _anchor
+			VAR _mom_pfrom = EDATE(DATE(YEAR(_anchor), MONTH(_anchor), 1), -1)
+			VAR _mom_pto   = EDATE(_anchor, -1)
+			VAR _curr  = CALCULATE([Unavailable Orders], DATESBETWEEN('gold dim_date'[full_date], _mom_from, _mom_to))
+			VAR _prior = CALCULATE([Unavailable Orders], DATESBETWEEN('gold dim_date'[full_date], _mom_pfrom, _mom_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000136
+
+	measure 'Unavailable Orders Trend Color' =
+			VAR _pct = [Unavailable Orders MoM %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct < 0, "#22C55E", IF(_pct > 0, "#EF4444", "#808080")))
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000137
+
+	measure 'Active Sellers YoY %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(ISFILTERED('gold dim_date'[full_date]), MAX('gold dim_date'[full_date]), _anchor_nf)
+			VAR _yoy_from  = DATE(YEAR(_anchor), 1, 1)
+			VAR _yoy_to    = _anchor
+			VAR _yoy_pfrom = DATE(YEAR(_anchor) - 1, 1, 1)
+			VAR _yoy_pto   = EDATE(_anchor, -12)
+			VAR _curr  = CALCULATE([Active Sellers], DATESBETWEEN('gold dim_date'[full_date], _yoy_from, _yoy_to))
+			VAR _prior = CALCULATE([Active Sellers], DATESBETWEEN('gold dim_date'[full_date], _yoy_pfrom, _yoy_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000138
+
+	measure 'Active Sellers Trend Color' =
+			VAR _pct = [Active Sellers YoY %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct > 0, "#22C55E", IF(_pct < 0, "#EF4444", "#808080")))
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000139
+
+	measure 'Revenue per Seller Trend Color' =
+			VAR _pct = [Revenue per Seller YoY %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct > 0, "#22C55E", IF(_pct < 0, "#EF4444", "#808080")))
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000140
+
+	measure 'Top Seller Revenue YoY %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(ISFILTERED('gold dim_date'[full_date]), MAX('gold dim_date'[full_date]), _anchor_nf)
+			VAR _yoy_from  = DATE(YEAR(_anchor), 1, 1)
+			VAR _yoy_to    = _anchor
+			VAR _yoy_pfrom = DATE(YEAR(_anchor) - 1, 1, 1)
+			VAR _yoy_pto   = EDATE(_anchor, -12)
+			VAR _curr  = CALCULATE([Top Seller Revenue], DATESBETWEEN('gold dim_date'[full_date], _yoy_from, _yoy_to))
+			VAR _prior = CALCULATE([Top Seller Revenue], DATESBETWEEN('gold dim_date'[full_date], _yoy_pfrom, _yoy_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000141
+
+	measure 'Top Seller Revenue Trend Color' =
+			VAR _pct = [Top Seller Revenue YoY %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct > 0, "#22C55E", IF(_pct < 0, "#EF4444", "#808080")))
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000142
+
+	measure 'Top Category Revenue YoY %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(ISFILTERED('gold dim_date'[full_date]), MAX('gold dim_date'[full_date]), _anchor_nf)
+			VAR _yoy_from  = DATE(YEAR(_anchor), 1, 1)
+			VAR _yoy_to    = _anchor
+			VAR _yoy_pfrom = DATE(YEAR(_anchor) - 1, 1, 1)
+			VAR _yoy_pto   = EDATE(_anchor, -12)
+			VAR _curr  = CALCULATE([Top Category Revenue], DATESBETWEEN('gold dim_date'[full_date], _yoy_from, _yoy_to))
+			VAR _prior = CALCULATE([Top Category Revenue], DATESBETWEEN('gold dim_date'[full_date], _yoy_pfrom, _yoy_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000143
+
+	measure 'Top Category Revenue Trend Color' =
+			VAR _pct = [Top Category Revenue YoY %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct > 0, "#22C55E", IF(_pct < 0, "#EF4444", "#808080")))
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000144
+
+	measure 'Top Category Share YoY %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(ISFILTERED('gold dim_date'[full_date]), MAX('gold dim_date'[full_date]), _anchor_nf)
+			VAR _yoy_from  = DATE(YEAR(_anchor), 1, 1)
+			VAR _yoy_to    = _anchor
+			VAR _yoy_pfrom = DATE(YEAR(_anchor) - 1, 1, 1)
+			VAR _yoy_pto   = EDATE(_anchor, -12)
+			VAR _curr  = CALCULATE([Top Category Share], DATESBETWEEN('gold dim_date'[full_date], _yoy_from, _yoy_to))
+			VAR _prior = CALCULATE([Top Category Share], DATESBETWEEN('gold dim_date'[full_date], _yoy_pfrom, _yoy_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000145
+
+	measure 'Top Category Share Trend Color' =
+			VAR _pct = [Top Category Share YoY %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct > 0, "#22C55E", IF(_pct < 0, "#EF4444", "#808080")))
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000146
+
+	measure 'Category Growth Rate MoM %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(ISFILTERED('gold dim_date'[full_date]), MAX('gold dim_date'[full_date]), _anchor_nf)
+			VAR _mom_from  = DATE(YEAR(_anchor), MONTH(_anchor), 1)
+			VAR _mom_to    = _anchor
+			VAR _mom_pfrom = EDATE(DATE(YEAR(_anchor), MONTH(_anchor), 1), -1)
+			VAR _mom_pto   = EDATE(_anchor, -1)
+			VAR _curr  = CALCULATE([Category Growth Rate YoY], DATESBETWEEN('gold dim_date'[full_date], _mom_from, _mom_to))
+			VAR _prior = CALCULATE([Category Growth Rate YoY], DATESBETWEEN('gold dim_date'[full_date], _mom_pfrom, _mom_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000147
+
+	measure 'Category Growth Rate Trend Color' =
+			VAR _pct = [Category Growth Rate MoM %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct > 0, "#22C55E", IF(_pct < 0, "#EF4444", "#808080")))
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000148
+
+	measure 'Payment Transactions MoM %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(ISFILTERED('gold dim_date'[full_date]), MAX('gold dim_date'[full_date]), _anchor_nf)
+			VAR _mom_from  = DATE(YEAR(_anchor), MONTH(_anchor), 1)
+			VAR _mom_to    = _anchor
+			VAR _mom_pfrom = EDATE(DATE(YEAR(_anchor), MONTH(_anchor), 1), -1)
+			VAR _mom_pto   = EDATE(_anchor, -1)
+			VAR _curr  = CALCULATE([Payment Transactions], DATESBETWEEN('gold dim_date'[full_date], _mom_from, _mom_to))
+			VAR _prior = CALCULATE([Payment Transactions], DATESBETWEEN('gold dim_date'[full_date], _mom_pfrom, _mom_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000149
+
+	measure 'Payment Transactions Trend Color' =
+			VAR _pct = [Payment Transactions MoM %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct > 0, "#22C55E", IF(_pct < 0, "#EF4444", "#808080")))
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000150
+
+	measure 'Avg Payment Value MoM %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(ISFILTERED('gold dim_date'[full_date]), MAX('gold dim_date'[full_date]), _anchor_nf)
+			VAR _mom_from  = DATE(YEAR(_anchor), MONTH(_anchor), 1)
+			VAR _mom_to    = _anchor
+			VAR _mom_pfrom = EDATE(DATE(YEAR(_anchor), MONTH(_anchor), 1), -1)
+			VAR _mom_pto   = EDATE(_anchor, -1)
+			VAR _curr  = CALCULATE([Avg Payment Value], DATESBETWEEN('gold dim_date'[full_date], _mom_from, _mom_to))
+			VAR _prior = CALCULATE([Avg Payment Value], DATESBETWEEN('gold dim_date'[full_date], _mom_pfrom, _mom_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000151
+
+	measure 'Avg Payment Value Trend Color' =
+			VAR _pct = [Avg Payment Value MoM %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct > 0, "#22C55E", IF(_pct < 0, "#EF4444", "#808080")))
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000152
+
+	measure 'Credit Card MoM %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(ISFILTERED('gold dim_date'[full_date]), MAX('gold dim_date'[full_date]), _anchor_nf)
+			VAR _mom_from  = DATE(YEAR(_anchor), MONTH(_anchor), 1)
+			VAR _mom_to    = _anchor
+			VAR _mom_pfrom = EDATE(DATE(YEAR(_anchor), MONTH(_anchor), 1), -1)
+			VAR _mom_pto   = EDATE(_anchor, -1)
+			VAR _curr  = CALCULATE([Credit Card %], DATESBETWEEN('gold dim_date'[full_date], _mom_from, _mom_to))
+			VAR _prior = CALCULATE([Credit Card %], DATESBETWEEN('gold dim_date'[full_date], _mom_pfrom, _mom_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000153
+
+	measure 'Credit Card Trend Color' =
+			VAR _pct = [Credit Card MoM %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct > 0, "#22C55E", IF(_pct < 0, "#EF4444", "#808080")))
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000154
+
+	measure 'Boleto MoM %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(ISFILTERED('gold dim_date'[full_date]), MAX('gold dim_date'[full_date]), _anchor_nf)
+			VAR _mom_from  = DATE(YEAR(_anchor), MONTH(_anchor), 1)
+			VAR _mom_to    = _anchor
+			VAR _mom_pfrom = EDATE(DATE(YEAR(_anchor), MONTH(_anchor), 1), -1)
+			VAR _mom_pto   = EDATE(_anchor, -1)
+			VAR _curr  = CALCULATE([Boleto %], DATESBETWEEN('gold dim_date'[full_date], _mom_from, _mom_to))
+			VAR _prior = CALCULATE([Boleto %], DATESBETWEEN('gold dim_date'[full_date], _mom_pfrom, _mom_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000155
+
+	measure 'Boleto Trend Color' =
+			VAR _pct = [Boleto MoM %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct > 0, "#22C55E", IF(_pct < 0, "#EF4444", "#808080")))
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000156
+
+	measure 'Avg Installments MoM %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(ISFILTERED('gold dim_date'[full_date]), MAX('gold dim_date'[full_date]), _anchor_nf)
+			VAR _mom_from  = DATE(YEAR(_anchor), MONTH(_anchor), 1)
+			VAR _mom_to    = _anchor
+			VAR _mom_pfrom = EDATE(DATE(YEAR(_anchor), MONTH(_anchor), 1), -1)
+			VAR _mom_pto   = EDATE(_anchor, -1)
+			VAR _curr  = CALCULATE([Avg Installments], DATESBETWEEN('gold dim_date'[full_date], _mom_from, _mom_to))
+			VAR _prior = CALCULATE([Avg Installments], DATESBETWEEN('gold dim_date'[full_date], _mom_pfrom, _mom_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000157
+
+	measure 'Avg Installments Trend Color' =
+			VAR _pct = [Avg Installments MoM %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct > 0, "#22C55E", IF(_pct < 0, "#EF4444", "#808080")))
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000158
+
+	measure 'Max Installments Used MoM %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(ISFILTERED('gold dim_date'[full_date]), MAX('gold dim_date'[full_date]), _anchor_nf)
+			VAR _mom_from  = DATE(YEAR(_anchor), MONTH(_anchor), 1)
+			VAR _mom_to    = _anchor
+			VAR _mom_pfrom = EDATE(DATE(YEAR(_anchor), MONTH(_anchor), 1), -1)
+			VAR _mom_pto   = EDATE(_anchor, -1)
+			VAR _curr  = CALCULATE([Max Installments Used], DATESBETWEEN('gold dim_date'[full_date], _mom_from, _mom_to))
+			VAR _prior = CALCULATE([Max Installments Used], DATESBETWEEN('gold dim_date'[full_date], _mom_pfrom, _mom_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000159
+
+	measure 'Max Installments Used Trend Color' =
+			VAR _pct = [Max Installments Used MoM %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct > 0, "#22C55E", IF(_pct < 0, "#EF4444", "#808080")))
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000160
+
+	measure 'Orders Using Installments MoM %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(ISFILTERED('gold dim_date'[full_date]), MAX('gold dim_date'[full_date]), _anchor_nf)
+			VAR _mom_from  = DATE(YEAR(_anchor), MONTH(_anchor), 1)
+			VAR _mom_to    = _anchor
+			VAR _mom_pfrom = EDATE(DATE(YEAR(_anchor), MONTH(_anchor), 1), -1)
+			VAR _mom_pto   = EDATE(_anchor, -1)
+			VAR _curr  = CALCULATE([Orders Using Installments %], DATESBETWEEN('gold dim_date'[full_date], _mom_from, _mom_to))
+			VAR _prior = CALCULATE([Orders Using Installments %], DATESBETWEEN('gold dim_date'[full_date], _mom_pfrom, _mom_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000161
+
+	measure 'Orders Using Installments Trend Color' =
+			VAR _pct = [Orders Using Installments MoM %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct > 0, "#22C55E", IF(_pct < 0, "#EF4444", "#808080")))
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000162
+
+	measure 'Total MQLs Trend Color' =
+			VAR _pct = [MQL Trend %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct > 0, "#22C55E", IF(_pct < 0, "#EF4444", "#808080")))
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000163
+
+	measure 'Total Deals MoM %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(ISFILTERED('gold dim_date'[full_date]), MAX('gold dim_date'[full_date]), _anchor_nf)
+			VAR _mom_from  = DATE(YEAR(_anchor), MONTH(_anchor), 1)
+			VAR _mom_to    = _anchor
+			VAR _mom_pfrom = EDATE(DATE(YEAR(_anchor), MONTH(_anchor), 1), -1)
+			VAR _mom_pto   = EDATE(_anchor, -1)
+			VAR _curr  = CALCULATE([Total Deals], DATESBETWEEN('gold dim_date'[full_date], _mom_from, _mom_to))
+			VAR _prior = CALCULATE([Total Deals], DATESBETWEEN('gold dim_date'[full_date], _mom_pfrom, _mom_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000164
+
+	measure 'Total Deals Trend Color' =
+			VAR _pct = [Total Deals MoM %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct > 0, "#22C55E", IF(_pct < 0, "#EF4444", "#808080")))
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000165
+
+	measure 'MQL Conversion Rate Trend Color' =
+			VAR _pct = [MQL Conversion Rate MoM %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct > 0, "#22C55E", IF(_pct < 0, "#EF4444", "#808080")))
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000166
+
+	measure 'Avg Days to Close Trend Color' =
+			VAR _pct = [Avg Days to Close MoM %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct < 0, "#22C55E", IF(_pct > 0, "#EF4444", "#808080")))
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000167
+
+	measure 'Active Channels MoM %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(ISFILTERED('gold dim_date'[full_date]), MAX('gold dim_date'[full_date]), _anchor_nf)
+			VAR _mom_from  = DATE(YEAR(_anchor), MONTH(_anchor), 1)
+			VAR _mom_to    = _anchor
+			VAR _mom_pfrom = EDATE(DATE(YEAR(_anchor), MONTH(_anchor), 1), -1)
+			VAR _mom_pto   = EDATE(_anchor, -1)
+			VAR _curr  = CALCULATE([Active Channels], DATESBETWEEN('gold dim_date'[full_date], _mom_from, _mom_to))
+			VAR _prior = CALCULATE([Active Channels], DATESBETWEEN('gold dim_date'[full_date], _mom_pfrom, _mom_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000168
+
+	measure 'Active Channels Trend Color' =
+			VAR _pct = [Active Channels MoM %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct > 0, "#22C55E", IF(_pct < 0, "#EF4444", "#808080")))
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000169
+
+	measure 'Avg Declared Monthly Revenue Trend Color' =
+			VAR _pct = [Avg Declared Monthly Revenue MoM %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct > 0, "#22C55E", IF(_pct < 0, "#EF4444", "#808080")))
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000170
+
+	measure 'Peak Month Revenue YoY %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(ISFILTERED('gold dim_date'[full_date]), MAX('gold dim_date'[full_date]), _anchor_nf)
+			VAR _yoy_from  = DATE(YEAR(_anchor), 1, 1)
+			VAR _yoy_to    = _anchor
+			VAR _yoy_pfrom = DATE(YEAR(_anchor) - 1, 1, 1)
+			VAR _yoy_pto   = EDATE(_anchor, -12)
+			VAR _curr  = CALCULATE([Peak Month Revenue], DATESBETWEEN('gold dim_date'[full_date], _yoy_from, _yoy_to))
+			VAR _prior = CALCULATE([Peak Month Revenue], DATESBETWEEN('gold dim_date'[full_date], _yoy_pfrom, _yoy_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000171
+
+		formatStringDefinition = "+0.00%;-0.00%;0.00%"
+
+	measure 'Peak Month Revenue Trend Color' =
+			VAR _pct = [Peak Month Revenue YoY %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct > 0, "#22C55E", IF(_pct < 0, "#EF4444", "#808080")))
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000172
+
+	measure 'Weakest Month Revenue MoM %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(ISFILTERED('gold dim_date'[full_date]), MAX('gold dim_date'[full_date]), _anchor_nf)
+			VAR _mom_from  = DATE(YEAR(_anchor), MONTH(_anchor), 1)
+			VAR _mom_to    = _anchor
+			VAR _mom_pfrom = EDATE(DATE(YEAR(_anchor), MONTH(_anchor), 1), -1)
+			VAR _mom_pto   = EDATE(_anchor, -1)
+			VAR _curr  = CALCULATE([Weakest Month Revenue], DATESBETWEEN('gold dim_date'[full_date], _mom_from, _mom_to))
+			VAR _prior = CALCULATE([Weakest Month Revenue], DATESBETWEEN('gold dim_date'[full_date], _mom_pfrom, _mom_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000173
+
+	measure 'Weakest Month Revenue Trend Color' =
+			VAR _pct = [Weakest Month Revenue MoM %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct > 0, "#22C55E", IF(_pct < 0, "#EF4444", "#808080")))
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000174
+
+	measure 'Weekend Order Share MoM %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(ISFILTERED('gold dim_date'[full_date]), MAX('gold dim_date'[full_date]), _anchor_nf)
+			VAR _mom_from  = DATE(YEAR(_anchor), MONTH(_anchor), 1)
+			VAR _mom_to    = _anchor
+			VAR _mom_pfrom = EDATE(DATE(YEAR(_anchor), MONTH(_anchor), 1), -1)
+			VAR _mom_pto   = EDATE(_anchor, -1)
+			VAR _curr  = CALCULATE([Weekend Order Share], DATESBETWEEN('gold dim_date'[full_date], _mom_from, _mom_to))
+			VAR _prior = CALCULATE([Weekend Order Share], DATESBETWEEN('gold dim_date'[full_date], _mom_pfrom, _mom_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000175
+
+	measure 'Weekend Order Share Trend Color' =
+			VAR _pct = [Weekend Order Share MoM %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct > 0, "#22C55E", IF(_pct < 0, "#EF4444", "#808080")))
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000176
+
+	measure 'Holiday Lift MoM %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(ISFILTERED('gold dim_date'[full_date]), MAX('gold dim_date'[full_date]), _anchor_nf)
+			VAR _mom_from  = DATE(YEAR(_anchor), MONTH(_anchor), 1)
+			VAR _mom_to    = _anchor
+			VAR _mom_pfrom = EDATE(DATE(YEAR(_anchor), MONTH(_anchor), 1), -1)
+			VAR _mom_pto   = EDATE(_anchor, -1)
+			VAR _curr  = CALCULATE([Holiday Lift %], DATESBETWEEN('gold dim_date'[full_date], _mom_from, _mom_to))
+			VAR _prior = CALCULATE([Holiday Lift %], DATESBETWEEN('gold dim_date'[full_date], _mom_pfrom, _mom_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000177
+
+	measure 'Holiday Lift Trend Color' =
+			VAR _pct = [Holiday Lift MoM %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct > 0, "#22C55E", IF(_pct < 0, "#EF4444", "#808080")))
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000178
+
+	measure 'Base Forecast MoM %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(ISFILTERED('gold dim_date'[full_date]), MAX('gold dim_date'[full_date]), _anchor_nf)
+			VAR _mom_from  = DATE(YEAR(_anchor), MONTH(_anchor), 1)
+			VAR _mom_to    = _anchor
+			VAR _mom_pfrom = EDATE(DATE(YEAR(_anchor), MONTH(_anchor), 1), -1)
+			VAR _mom_pto   = EDATE(_anchor, -1)
+			VAR _curr  = CALCULATE([Base Forecast], DATESBETWEEN('gold dim_date'[full_date], _mom_from, _mom_to))
+			VAR _prior = CALCULATE([Base Forecast], DATESBETWEEN('gold dim_date'[full_date], _mom_pfrom, _mom_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000179
+
+	measure 'Base Forecast Trend Color' =
+			VAR _pct = [Base Forecast MoM %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct > 0, "#22C55E", IF(_pct < 0, "#EF4444", "#808080")))
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000180
+
+	measure 'Revenue CAGR YoY %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(ISFILTERED('gold dim_date'[full_date]), MAX('gold dim_date'[full_date]), _anchor_nf)
+			VAR _yoy_from  = DATE(YEAR(_anchor), 1, 1)
+			VAR _yoy_to    = _anchor
+			VAR _yoy_pfrom = DATE(YEAR(_anchor) - 1, 1, 1)
+			VAR _yoy_pto   = EDATE(_anchor, -12)
+			VAR _curr  = CALCULATE([Revenue CAGR], DATESBETWEEN('gold dim_date'[full_date], _yoy_from, _yoy_to))
+			VAR _prior = CALCULATE([Revenue CAGR], DATESBETWEEN('gold dim_date'[full_date], _yoy_pfrom, _yoy_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000181
+
+	measure 'Revenue CAGR Trend Color' =
+			VAR _pct = [Revenue CAGR YoY %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct > 0, "#22C55E", IF(_pct < 0, "#EF4444", "#808080")))
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000182
+
+	measure 'YTD Revenue YoY %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(ISFILTERED('gold dim_date'[full_date]), MAX('gold dim_date'[full_date]), _anchor_nf)
+			VAR _yoy_from  = DATE(YEAR(_anchor), 1, 1)
+			VAR _yoy_to    = _anchor
+			VAR _yoy_pfrom = DATE(YEAR(_anchor) - 1, 1, 1)
+			VAR _yoy_pto   = EDATE(_anchor, -12)
+			VAR _curr  = CALCULATE([YTD Revenue], DATESBETWEEN('gold dim_date'[full_date], _yoy_from, _yoy_to))
+			VAR _prior = CALCULATE([YTD Revenue], DATESBETWEEN('gold dim_date'[full_date], _yoy_pfrom, _yoy_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000183
+
+	measure 'YTD Revenue Trend Color' =
+			VAR _pct = [YTD Revenue YoY %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct > 0, "#22C55E", IF(_pct < 0, "#EF4444", "#808080")))
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000184
+
+	measure 'Active Anomalies MoM %' =
+			VAR _maxKey    = CALCULATE(MAX('gold fact_order_items'[purchase_date_key]), ALL('gold fact_order_items'))
+			VAR _anchor_nf = MAXX(FILTER(ALL('gold dim_date'), 'gold dim_date'[date_key] = _maxKey), 'gold dim_date'[full_date])
+			VAR _anchor    = IF(ISFILTERED('gold dim_date'[full_date]), MAX('gold dim_date'[full_date]), _anchor_nf)
+			VAR _mom_from  = DATE(YEAR(_anchor), MONTH(_anchor), 1)
+			VAR _mom_to    = _anchor
+			VAR _mom_pfrom = EDATE(DATE(YEAR(_anchor), MONTH(_anchor), 1), -1)
+			VAR _mom_pto   = EDATE(_anchor, -1)
+			VAR _curr  = CALCULATE([Active Anomalies], DATESBETWEEN('gold dim_date'[full_date], _mom_from, _mom_to))
+			VAR _prior = CALCULATE([Active Anomalies], DATESBETWEEN('gold dim_date'[full_date], _mom_pfrom, _mom_pto))
+			RETURN IF(ISBLANK(_prior) || _prior = 0, BLANK(), DIVIDE(_curr - _prior, _prior))
+		formatString: 0.00%
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000185
+
+	measure 'Active Anomalies Trend Color' =
+			VAR _pct = [Active Anomalies MoM %]
+			RETURN IF(ISBLANK(_pct), "#808080", IF(_pct < 0, "#22C55E", IF(_pct > 0, "#EF4444", "#808080")))
+		lineageTag: b1c2d3e4-f5a6-7890-bcde-f000000186
+
+	column Value
+		formatString: 0
+		lineageTag: e109b6f7-20c3-49d2-aa64-1c618d51d231
+		summarizeBy: sum
+		isNameInferred
+		sourceColumn: [Value]
+
+		annotation SummarizationSetBy = Automatic
+
+	partition MyMeasures = calculated
+		mode: import
+		source = {1}
+
+	annotation PBI_Id = 997f2c4902c843afaca3481623a93b82
+

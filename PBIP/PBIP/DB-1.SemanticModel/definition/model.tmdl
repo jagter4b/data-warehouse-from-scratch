@@ -1,0 +1,44 @@
+model Model
+	culture: en-GB
+	defaultPowerBIDataSourceVersion: powerBI_V3
+	sourceQueryCulture: en-GB
+	dataAccessOptions
+		legacyRedirects
+		returnErrorValuesAsNull
+
+annotation __PBI_TimeIntelligenceEnabled = 1
+
+annotation PBI_QueryOrder = ["gold dim_customer","gold dim_date","gold dim_marketing_channel","gold dim_order_status","gold dim_payment_type","gold dim_product","gold dim_seller","gold fact_marketing_funnel","gold fact_order_items","gold fact_order_life_cycle","gold fact_payments","gold fact_reviews","gold review_comments"]
+
+annotation PBI_ProTooling = ["DevMode"]
+
+ref table DateTableTemplate_609cb311-333c-40db-aaf8-6d68069db87a
+ref table 'gold dim_customer'
+ref table LocalDateTable_663abac2-ce7a-494e-9e23-abf314fd9bc9
+ref table 'gold dim_date'
+ref table 'gold dim_marketing_channel'
+ref table LocalDateTable_79205058-7dfc-4ab7-8297-601fb41a307c
+ref table 'gold dim_order_status'
+ref table LocalDateTable_1d5f73d0-de44-443b-b5f6-0cd7457dfb2e
+ref table 'gold dim_payment_type'
+ref table LocalDateTable_cf5f6cb9-dcc8-49d0-abf5-3f24de28132a
+ref table 'gold dim_product'
+ref table LocalDateTable_d5c5e637-d168-4219-a21d-ffe1a30d74cb
+ref table 'gold dim_seller'
+ref table LocalDateTable_771207c7-380a-4369-8edd-225a41430591
+ref table 'gold fact_marketing_funnel'
+ref table LocalDateTable_56201c40-226c-4a63-bfdc-980a759d6bee
+ref table 'gold fact_order_items'
+ref table LocalDateTable_f0e0f1e3-ada3-4ed2-b6e8-21af9c94e564
+ref table 'gold fact_order_life_cycle'
+ref table LocalDateTable_137b780e-f45e-49e4-b2c0-8b5f241f9115
+ref table 'gold fact_payments'
+ref table LocalDateTable_81547f80-15bd-4209-b7a3-363f9f651308
+ref table 'gold fact_reviews'
+ref table LocalDateTable_68461682-ca64-4922-baae-f0309d7c116f
+ref table 'gold review_comments'
+ref table LocalDateTable_f7fab00c-a1e7-4327-a27d-2ff904cf6e7d
+ref table MyMeasures
+
+ref cultureInfo en-GB
+
