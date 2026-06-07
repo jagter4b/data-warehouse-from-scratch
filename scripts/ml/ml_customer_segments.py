@@ -1,142 +1,162 @@
+"""
+ml_customer_segments.py
+────────────────────────
+RFM-based K-Means customer segmentation (k=4).
+Reads from gold.obt_master, computes RFM features, runs K-Means,
+then writes segment labels back to gold.obt_master.
+
+Segments: Champions | Loyal | At Risk | Lost/Inactive
+
+Usage:
+    python scripts/ml/ml_customer_segments.py           # dry-run
+    python scripts/ml/ml_customer_segments.py --execute # write to DB
+"""
+
 import os
 import argparse
-import pandas as pd
 import numpy as np
-from datetime import datetime
+import pandas as pd
 from sqlalchemy import create_engine, text
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
-from sklearn.metrics import silhouette_score
 from dotenv import load_dotenv
 
 load_dotenv()
 
+ANCHOR_DATE = pd.Timestamp("2018-10-17")   # max purchase date in dataset + 1 day
+N_CLUSTERS  = 4
+RANDOM_STATE = 42
+
+
 def get_engine():
-    # Use sqlalchemy for pandas writing
-    conn_str = (
-        f"mssql+pyodbc://@{os.getenv('DEST_DB_HOST')}:{os.getenv('DEST_DB_PORT')}"
-        f"/{os.getenv('DEST_DB_NAME').strip()}?"
-        "driver=ODBC+Driver+17+for+SQL+Server&Trusted_Connection=yes"
+    host = os.getenv("DEST_DB_HOST", "localhost")
+    port = os.getenv("DEST_DB_PORT", "1433")
+    db   = os.getenv("DEST_DB_NAME", "BI_AI").strip()
+    return create_engine(
+        f"mssql+pyodbc://@{host}:{port}/{db}"
+        f"?driver=ODBC+Driver+17+for+SQL+Server&Trusted_Connection=yes",
+        fast_executemany=True,
     )
-    return create_engine(conn_str)
 
-def load_data(engine):
-    query = """
-    SELECT 
-        customer_unique_id, 
-        days_since_last_order, 
-        total_orders, 
-        total_spend
-    FROM gold.obt_customers
+
+def label_segment(row):
+    """Map (R, F, M) ranks 1-4 to a human-readable segment."""
+    r, f, m = row["r_rank"], row["f_rank"], row["m_rank"]
+    score = (r + f + m) / 3
+    if score >= 3.5:
+        return "Champions"
+    elif score >= 2.5:
+        return "Loyal"
+    elif score >= 1.8:
+        return "At Risk"
+    else:
+        return "Lost/Inactive"
+
+
+def run(engine, execute: bool = False):
+    print("=" * 60)
+    print("ml_customer_segments.py  [K-Means RFM Segmentation]")
+    print("=" * 60)
+
+    # ── 1. Load data ──────────────────────────────────────────
+    print("\n[1/5] Loading orders from gold.obt_master ...")
+    q = """
+    SELECT customer_unique_id, purchase_date, total_order_value
+    FROM gold.obt_master
+    WHERE order_status = 'delivered'
+      AND customer_unique_id IS NOT NULL
+      AND total_order_value IS NOT NULL
     """
-    df = pd.read_sql(query, engine)
-    return df
+    with engine.connect() as conn:
+        df = pd.read_sql(q, conn)
+    df["purchase_date"] = pd.to_datetime(df["purchase_date"])
+    print(f"      → {len(df):,} delivered orders loaded")
 
-def assign_rfm_scores(df):
-    # Handle NaNs
-    df['days_since_last_order'] = df['days_since_last_order'].fillna(999)
-    df['total_orders'] = df['total_orders'].fillna(0)
-    df['total_spend'] = df['total_spend'].fillna(0)
+    # ── 2. Compute RFM per customer ───────────────────────────
+    print("\n[2/5] Computing RFM features ...")
+    rfm = df.groupby("customer_unique_id").agg(
+        recency_days   = ("purchase_date", lambda x: (ANCHOR_DATE - x.max()).days),
+        frequency_orders = ("purchase_date", "count"),
+        monetary_total = ("total_order_value", "sum"),
+    ).reset_index()
 
-    # Recency: Lower days is better, so quintile 5 is lowest days
-    df['rfm_recency_score'] = pd.qcut(df['days_since_last_order'], 5, labels=[5, 4, 3, 2, 1])
-    
-    # Frequency: Higher orders is better. Since many customers have 1 order, qcut might fail due to non-unique edges.
-    # We use rank method 'first' to force unique bins
-    df['rfm_frequency_score'] = pd.qcut(df['total_orders'].rank(method='first'), 5, labels=[1, 2, 3, 4, 5])
-    
-    # Monetary: Higher spend is better
-    df['rfm_monetary_score'] = pd.qcut(df['total_spend'].rank(method='first'), 5, labels=[1, 2, 3, 4, 5])
-    
-    # Convert to numeric
-    df['rfm_recency_score'] = df['rfm_recency_score'].astype(int)
-    df['rfm_frequency_score'] = df['rfm_frequency_score'].astype(int)
-    df['rfm_monetary_score'] = df['rfm_monetary_score'].astype(int)
+    print(f"      → {len(rfm):,} unique customers | "
+          f"avg recency={rfm.recency_days.mean():.0f}d | "
+          f"avg frequency={rfm.frequency_orders.mean():.2f} | "
+          f"avg monetary=R${rfm.monetary_total.mean():.2f}")
 
-    
-    df['rfm_total_score'] = df['rfm_recency_score'] + df['rfm_frequency_score'] + df['rfm_monetary_score']
-    return df
+    # ── 3. Scale + K-Means ────────────────────────────────────
+    print(f"\n[3/5] Fitting K-Means (k={N_CLUSTERS}) ...")
+    features = rfm[["recency_days", "frequency_orders", "monetary_total"]].copy()
+    # Log-transform monetary to reduce skew
+    features["monetary_total"] = np.log1p(features["monetary_total"])
 
-def run_kmeans(df):
-    features = ['days_since_last_order', 'total_orders', 'total_spend']
     scaler = StandardScaler()
-    scaled_data = scaler.fit_transform(df[features])
-    
-    kmeans = KMeans(n_clusters=4, random_state=42, n_init=10)
-    df['cluster_id'] = kmeans.fit_predict(scaled_data)
-    
-    # Calculate Silhouette
-    # Sample if dataset is too large to compute silhouette efficiently
-    sample_size = min(len(scaled_data), 10000)
-    sil_score = silhouette_score(scaled_data, df['cluster_id'], sample_size=sample_size, random_state=42)
-    
-    # Map clusters to labels based on centroids
-    centroids = pd.DataFrame(scaler.inverse_transform(kmeans.cluster_centers_), columns=features)
-    centroids['cluster_id'] = range(4)
-    
-    # Simple heuristic to assign labels based on RFM meaning
-    # Champions: Low recency days, High frequency, High spend
-    # We will score centroids
-    centroids['c_score'] = -centroids['days_since_last_order'] + (centroids['total_orders'] * 10) + (centroids['total_spend'])
-    sorted_clusters = centroids.sort_values('c_score', ascending=False)['cluster_id'].tolist()
-    
-    label_map = {
-        sorted_clusters[0]: 'Champions',
-        sorted_clusters[1]: 'Loyal Customers',
-        sorted_clusters[2]: 'At Risk',
-        sorted_clusters[3]: 'Lost/Inactive'
-    }
-    
-    df['segment_label'] = df['cluster_id'].map(label_map)
-    df['scored_at'] = datetime.now()
-    
-    return df, sil_score
+    X = scaler.fit_transform(features)
 
-def print_diagnostics(df, sil_score):
-    print("=== MODEL 1: RFM SEGMENTATION ===")
-    print(f"Silhouette Score (Sampled): {sil_score:.4f}\n")
-    print("Segment Distribution:")
-    print(df['segment_label'].value_counts())
-    print("\nSample Output:")
-    print(df[['customer_unique_id', 'rfm_total_score', 'cluster_id', 'segment_label']].head(5).to_string(index=False))
+    km = KMeans(n_clusters=N_CLUSTERS, random_state=RANDOM_STATE, n_init=10)
+    rfm["cluster_id"] = km.fit_predict(X)
 
-def execute_write(df, engine):
-    output_cols = [
-        'customer_unique_id', 'rfm_recency_score', 'rfm_frequency_score', 
-        'rfm_monetary_score', 'rfm_total_score', 'cluster_id', 
-        'segment_label', 'scored_at'
-    ]
-    df_out = df[output_cols]
-    
-    print("\nExecuting persistent write to gold.ml_customer_segments...")
+    # Rank clusters by mean recency (ascending = more recent = better)
+    cluster_means = rfm.groupby("cluster_id")[["recency_days", "frequency_orders", "monetary_total"]].mean()
+    cluster_means["r_rank"] = cluster_means["recency_days"].rank(ascending=False)   # low recency = recent = good
+    cluster_means["f_rank"] = cluster_means["frequency_orders"].rank(ascending=True)
+    cluster_means["m_rank"] = cluster_means["monetary_total"].rank(ascending=True)
+
+    rfm = rfm.merge(cluster_means[["r_rank", "f_rank", "m_rank"]], on="cluster_id")
+    rfm["customer_segment"] = rfm.apply(label_segment, axis=1)
+
+    seg_counts = rfm["customer_segment"].value_counts()
+    print(f"      → Segment distribution:\n{seg_counts.to_string()}")
+
+    # ── 4. Merge back to order level ──────────────────────────
+    print("\n[4/5] Merging results to order level ...")
+    result = rfm[["customer_unique_id", "recency_days", "frequency_orders",
+                   "monetary_total", "customer_segment"]].copy()
+
+    if not execute:
+        print("\n[DRY-RUN] Pass --execute to write to DB")
+        print(result.head(5).to_string())
+        return
+
+    # ── 5. Write back to gold.obt_master ──────────────────────
+    print("\n[5/5] Writing results to gold.obt_master ...")
+    # Build a temp staging table and UPDATE via JOIN
     with engine.begin() as conn:
-        # Check if table exists
-        check_query = text("SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'gold' AND TABLE_NAME = 'ml_customer_segments'")
-        exists = conn.execute(check_query).fetchone()
-        
-        if exists:
-            conn.execute(text("TRUNCATE TABLE gold.ml_customer_segments"))
-        
-        # Append data
-        df_out.to_sql('ml_customer_segments', conn, schema='gold', if_exists='append', index=False)
-        print(f"Successfully populated {len(df_out)} rows within transaction.")
+        conn.execute(text("""
+            IF OBJECT_ID('tempdb..#seg_stage', 'U') IS NOT NULL
+                DROP TABLE #seg_stage;
+            CREATE TABLE #seg_stage (
+                customer_unique_id VARCHAR(50),
+                recency_days INT,
+                frequency_orders INT,
+                monetary_total FLOAT,
+                customer_segment VARCHAR(30)
+            );
+        """))
+
+        result.to_sql(
+            name="#seg_stage", schema=None, con=conn,
+            if_exists="append", index=False, chunksize=5000
+        )
+
+        conn.execute(text("""
+            UPDATE o
+            SET o.recency_days       = s.recency_days,
+                o.frequency_orders   = s.frequency_orders,
+                o.monetary_total     = s.monetary_total,
+                o.customer_segment   = s.customer_segment
+            FROM gold.obt_master o
+            JOIN #seg_stage s ON o.customer_unique_id = s.customer_unique_id;
+        """))
+
+    print(f"      → {len(result):,} customer records updated ✓")
+    print("\n✅ Customer segmentation complete.")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--execute", action="store_true", help="Write to database")
+    parser.add_argument("--execute", action="store_true")
     args = parser.parse_args()
-    
     engine = get_engine()
-    print("Loading data from gold.obt_customers...")
-    df = load_data(engine)
-    
-    print("Scoring RFM and clustering...")
-    df = assign_rfm_scores(df)
-    df, sil_score = run_kmeans(df)
-    
-    print_diagnostics(df, sil_score)
-    
-    if args.execute:
-        execute_write(df, engine)
-    else:
-        print("\nDry-run complete. Use --execute to save results.")
+    run(engine, execute=args.execute)

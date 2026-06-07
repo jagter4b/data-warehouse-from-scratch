@@ -1,150 +1,83 @@
 """
-db.py — Data loading layer for Olist ML Analytics.
-Tries live DB (Streamlit secrets / .env) then falls back to CSV exports.
-Each public getter returns an enriched DataFrame (ML result + relevant OBT columns).
+components/db.py
+─────────────────
+Database connection + data loader with automatic CSV fallback (demo mode).
+
+If SQL Server is unreachable (e.g., on Streamlit Cloud), the app falls
+back to loading from streamlit/data/obt_master.csv.
 """
+
+from __future__ import annotations
+
 import os
-import streamlit as st
 import pandas as pd
+import streamlit as st
+from dotenv import load_dotenv
 
+load_dotenv()
 
-# ── Engine ───────────────────────────────────────────────────────
-def _engine():
+CSV_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "obt_master.csv")
+
+# ─────────────────────────────────────────────
+# Engine factory (cached so we only connect once)
+# ─────────────────────────────────────────────
+@st.cache_resource(show_spinner=False)
+def _get_engine():
     try:
         from sqlalchemy import create_engine
-        host = st.secrets.get("DB_HOST", os.getenv("DEST_DB_HOST", ""))
-        port = st.secrets.get("DB_PORT", os.getenv("DEST_DB_PORT", "1433"))
-        db   = (st.secrets.get("DB_NAME", os.getenv("DEST_DB_NAME", "olist_dw")) or "").strip()
-        if not host:
-            return None
-        cs = (f"mssql+pyodbc://@{host}:{port}/{db}"
-              "?driver=ODBC+Driver+17+for+SQL+Server&Trusted_Connection=yes")
-        return create_engine(cs)
+        host = os.getenv("DEST_DB_HOST", "localhost")
+        port = os.getenv("DEST_DB_PORT", "1433")
+        db   = os.getenv("DEST_DB_NAME", "BI_AI").strip()
+        engine = create_engine(
+            f"mssql+pyodbc://@{host}:{port}/{db}"
+            f"?driver=ODBC+Driver+17+for+SQL+Server&Trusted_Connection=yes",
+            pool_pre_ping=True,
+            connect_args={"timeout": 5},
+        )
+        # Test connection
+        with engine.connect() as c:
+            c.execute(__import__("sqlalchemy").text("SELECT 1"))
+        return engine, False   # (engine, is_demo)
     except Exception:
-        return None
+        return None, True      # demo mode
 
 
-def _csv_dir():
-    return os.path.join(os.path.dirname(__file__), "..", "data")
+# ─────────────────────────────────────────────
+# Main data loader
+# ─────────────────────────────────────────────
+@st.cache_data(ttl=3600, show_spinner="Loading data...")
+def load_obt() -> tuple[pd.DataFrame, bool]:
+    """
+    Returns (df, is_demo_mode).
+    df contains every column from gold.obt_master.
+    """
+    engine, is_demo = _get_engine()
 
-
-def _load(name: str) -> pd.DataFrame:
-    """DB first, CSV fallback."""
-    eng = _engine()
-    if eng:
+    if not is_demo:
         try:
-            return pd.read_sql(f"SELECT * FROM gold.{name}", eng)
+            with engine.connect() as conn:
+                df = pd.read_sql("SELECT * FROM gold.obt_master", conn)
+            df["purchase_date"] = pd.to_datetime(df["purchase_date"])
+            return df, False
         except Exception:
             pass
-    path = os.path.join(_csv_dir(), f"{name}.csv")
-    if os.path.exists(path):
-        return pd.read_csv(path)
-    st.error(f"Cannot load `{name}` — no DB and no CSV found in streamlit/data/")
-    return pd.DataFrame()
+
+    # Fallback: CSV
+    if os.path.exists(CSV_PATH):
+        df = pd.read_csv(CSV_PATH, low_memory=False)
+        df["purchase_date"] = pd.to_datetime(df["purchase_date"])
+        return df, True
+
+    raise FileNotFoundError(
+        "Cannot reach SQL Server AND no CSV fallback found at "
+        f"{CSV_PATH}. Run export_csv.py first."
+    )
 
 
-# ── Raw cached loaders ────────────────────────────────────────────
-@st.cache_data(ttl=86400)
-def _ml_segments():    return _load("ml_customer_segments")
-@st.cache_data(ttl=86400)
-def _ml_churn():       return _load("ml_churn_predictions")
-@st.cache_data(ttl=86400)
-def _ml_clv():         return _load("ml_clv_predictions")
-@st.cache_data(ttl=86400)
-def _ml_seller_sc():   return _load("ml_seller_scores")
-@st.cache_data(ttl=86400)
-def _ml_seller_ch():   return _load("ml_seller_churn")
-@st.cache_data(ttl=86400)
-def _ml_delivery():    return _load("ml_delivery_risk")
-@st.cache_data(ttl=86400)
-def _ml_reviews():     return _load("ml_review_predictions")
-@st.cache_data(ttl=86400)
-def _obt_customers():  return _load("obt_customers")
-@st.cache_data(ttl=86400)
-def _obt_sellers():    return _load("obt_sellers")
-@st.cache_data(ttl=86400)
-def _obt_orders():     return _load("obt_orders")
-
-
-# ── Public enriched getters ───────────────────────────────────────
-@st.cache_data(ttl=86400)
-def get_rfm() -> pd.DataFrame:
-    ml  = _ml_segments()
-    obt = _obt_customers()[["customer_unique_id", "total_spend",
-                             "days_since_last_order", "customer_state",
-                             "top_category", "total_orders"]]
-    return ml.merge(obt, on="customer_unique_id", how="left")
-
-
-@st.cache_data(ttl=86400)
-def get_churn() -> pd.DataFrame:
-    ml  = _ml_churn()
-    obt = _obt_customers()[["customer_unique_id", "total_spend",
-                             "total_orders", "customer_state",
-                             "avg_review_score"]]
-    return ml.merge(obt, on="customer_unique_id", how="left")
-
-
-@st.cache_data(ttl=86400)
-def get_clv() -> pd.DataFrame:
-    ml  = _ml_clv()
-    obt = _obt_customers()[["customer_unique_id", "total_spend",
-                             "total_orders", "customer_tenure_days",
-                             "distinct_months_active"]]
-    return ml.merge(obt, on="customer_unique_id", how="left")
-
-
-@st.cache_data(ttl=86400)
-def get_seller_scores() -> pd.DataFrame:
-    ml  = _ml_seller_sc()
-    obt = _obt_sellers()[["seller_id", "was_acquired_via_mql",
-                           "seller_state", "total_distinct_customers_served",
-                           "total_items_sold", "pct_5star_reviews"]]
-    return ml.merge(obt, on="seller_id", how="left")
-
-
-@st.cache_data(ttl=86400)
-def get_seller_churn() -> pd.DataFrame:
-    ml  = _ml_seller_ch()
-    obt = _obt_sellers()[["seller_id", "total_revenue",
-                           "was_acquired_via_mql", "avg_review_score",
-                           "total_orders_fulfilled"]]
-    return ml.merge(obt, on="seller_id", how="left")
-
-
-@st.cache_data(ttl=86400)
-def get_delivery() -> pd.DataFrame:
-    ml  = _ml_delivery()
-    obt = _obt_orders()[["order_id", "total_order_value",
-                          "primary_category", "purchase_month",
-                          "purchase_day_of_week", "days_to_deliver",
-                          "total_items"]]
-    return ml.merge(obt, on="order_id", how="left")
-
-
-@st.cache_data(ttl=86400)
-def get_reviews() -> pd.DataFrame:
-    ml  = _ml_reviews()
-    obt = _obt_orders()[["order_id", "purchase_month",
-                          "purchase_day_of_week", "days_to_deliver",
-                          "is_late", "total_order_value", "c_scheduled_vs_actual_days"]]
-    return ml.merge(obt, on="order_id", how="left")
-
-
-# ── Home-page summary stats (light, just ML tables) ───────────────
-@st.cache_data(ttl=86400)
-def get_summary():
-    seg  = _ml_segments()
-    ch   = _ml_churn()
-    ss   = _ml_seller_sc()
-    dl   = _ml_delivery()
-    rv   = _ml_reviews()
-    return dict(
-        n_customers = len(seg),
-        n_sellers   = len(ss),
-        n_orders    = len(dl),
-        churn_rate  = ch["churn_predicted"].mean() * 100 if not ch.empty else 0,
-        ontime_rate = (1 - dl["delay_predicted"].mean()) * 100 if not dl.empty else 0,
-        avg_review  = rv["predicted_review_score"].mean() if not rv.empty else 0,
-        scored_at   = seg["scored_at"].iloc[0] if "scored_at" in seg.columns else "Unknown",
+def demo_banner():
+    """Display a banner if running in demo/CSV mode."""
+    st.info(
+        "📁 **Demo Mode** — Running from CSV snapshot. "
+        "Connect to SQL Server for live data.",
+        icon="ℹ️",
     )

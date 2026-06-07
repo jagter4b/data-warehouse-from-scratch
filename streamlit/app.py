@@ -1,118 +1,221 @@
+"""
+app.py — Overview / Landing Page
+─────────────────────────────────
+Main entry point for the Olist Analytics Streamlit dashboard.
+Shows business-level KPIs and trends.
+"""
+
+import os
+import sys
 import streamlit as st
 import pandas as pd
-import os
+import plotly.express as px
+import plotly.graph_objects as go
 
+# ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="Olist ML Analytics",
-    page_icon="📊",
+    page_title="Olist Analytics — Overview",
+    page_icon="🏭",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-from components.filters import load_css, sidebar_header, last_updated
-from components.db import get_summary, _ml_segments, _ml_seller_sc
-from components.charts import bar, gauge, PALETTE
+# ── Inject CSS ────────────────────────────────────────────────────────────────
+css_path = os.path.join(os.path.dirname(__file__), "assets", "style.css")
+with open(css_path) as f:
+    st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
-load_css()
-sidebar_header("Home · Overview")
+# ── Path setup ────────────────────────────────────────────────────────────────
+sys.path.insert(0, os.path.dirname(__file__))
+from components.db import load_obt, demo_banner
 
-# ─── Header ──────────────────────────────────────────────────────
-st.title("Olist ML Analytics")
-st.markdown(
-    '<p style="color:#52525B;font-size:15px;margin-top:-8px;margin-bottom:28px;">'
-    'Predictive Intelligence Dashboard &nbsp;·&nbsp; Brazilian E-Commerce Dataset 2016–2018'
-    '</p>',
-    unsafe_allow_html=True,
-)
+# ── Load data ─────────────────────────────────────────────────────────────────
+df_raw, is_demo = load_obt()
+if is_demo:
+    demo_banner()
 
-with st.spinner("Loading pipeline summary…"):
-    s = get_summary()
+df = df_raw.copy()
 
-# ─── KPI Row ─────────────────────────────────────────────────────
-c1, c2, c3, c4, c5, c6 = st.columns(6)
-c1.metric("Customers Scored",    f"{s['n_customers']:,}")
-c2.metric("Sellers Scored",      f"{s['n_sellers']:,}")
-c3.metric("Orders Scored",       f"{s['n_orders']:,}")
-c4.metric("Predicted Churn",     f"{s['churn_rate']:.1f}%",
-          help="% of customers predicted inactive (>120 days). High because Olist buyers are typically one-time.")
-c5.metric("On-Time Delivery",    f"{s['ontime_rate']:.1f}%")
-c6.metric("Avg Predicted Score", f"{s['avg_review']:.2f} ★")
+# Sidebar brand
+st.sidebar.markdown("""
+<div style='text-align:center; padding: 1rem 0 1.5rem;'>
+  <div style='font-size:2rem;'>🏭</div>
+  <div style='font-family:"Space Grotesk",sans-serif; font-size:1.1rem; font-weight:700; 
+              background:linear-gradient(135deg,#8b5cf6,#14b8a6);
+              -webkit-background-clip:text; -webkit-text-fill-color:transparent;'>
+    Olist Analytics
+  </div>
+  <div style='color:#475569; font-size:0.72rem; margin-top:0.25rem;'>ML-Powered Intelligence</div>
+</div>
+""", unsafe_allow_html=True)
 
-st.markdown("---")
+# ── Sidebar year filter ───────────────────────────────────────────────────────
+st.sidebar.markdown("## 🔍 Filters")
+years = sorted(df["purchase_year"].dropna().unique().astype(int).tolist())
+selected_years = st.sidebar.multiselect("Purchase Year", options=years, default=years)
+df = df[df["purchase_year"].isin(selected_years)] if selected_years else df
 
-# ─── Model Registry + Visual ─────────────────────────────────────
-st.markdown("## 🧠 Model Registry")
+delivered = df[df["order_status"] == "delivered"]
 
-MODELS = [
-    {"Model":"RFM Segmentation",  "Domain":"Customer","Algorithm":"K-Means (k=4)",    "Metric":"Silhouette","Score":0.4788,"Rows":96097, "Status":"✅ Optimal"},
-    {"Model":"Churn Prediction",  "Domain":"Customer","Algorithm":"XGBoost / RF",      "Metric":"AUC-ROC",   "Score":0.6829,"Rows":96096, "Status":"🟡 Acceptable"},
-    {"Model":"CLV Prediction",    "Domain":"Customer","Algorithm":"XGBoost Regressor", "Metric":"R²",        "Score":0.1710,"Rows":95135, "Status":"ℹ️ Honest Baseline"},
-    {"Model":"Seller Scoring",    "Domain":"Seller",  "Algorithm":"K-Means (k=3)",     "Metric":"Silhouette","Score":0.5679,"Rows":3096,  "Status":"✅ Optimal"},
-    {"Model":"Seller Churn",      "Domain":"Seller",  "Algorithm":"XGBoost",           "Metric":"AUC-ROC",   "Score":0.7846,"Rows":3096,  "Status":"✅ Optimal"},
-    {"Model":"Delivery Risk",     "Domain":"Order",   "Algorithm":"XGBoost",           "Metric":"AUC-ROC",   "Score":0.7483,"Rows":98651, "Status":"🟡 Acceptable"},
-    {"Model":"Review Prediction", "Domain":"Order",   "Algorithm":"XGBoost Regressor", "Metric":"RMSE",      "Score":1.1311,"Rows":96460, "Status":"🟡 Acceptable"},
+# ── Page header ───────────────────────────────────────────────────────────────
+st.markdown("""
+<div class='page-header'>
+  <h1>📊 Business Overview</h1>
+  <p>End-to-end view of Olist marketplace performance — orders, revenue, delivery and satisfaction.</p>
+</div>
+""", unsafe_allow_html=True)
+
+# ── Top KPI row ───────────────────────────────────────────────────────────────
+total_orders    = len(delivered)
+total_revenue   = delivered["total_order_value"].sum()
+avg_order_val   = delivered["total_order_value"].mean()
+on_time_pct     = delivered["is_delivered_on_time"].mean() * 100 if "is_delivered_on_time" in delivered.columns else 0
+avg_review      = delivered["review_score"].mean()
+total_customers = delivered["customer_unique_id"].nunique()
+
+k1, k2, k3, k4, k5, k6 = st.columns(6)
+metrics = [
+    (k1, "Total Orders",     f"{total_orders:,}",           "📦"),
+    (k2, "Total Revenue",    f"R${total_revenue/1e6:.2f}M", "💰"),
+    (k3, "Avg Order Value",  f"R${avg_order_val:.0f}",      "🛒"),
+    (k4, "On-Time Rate",     f"{on_time_pct:.1f}%",         "🚚"),
+    (k5, "Avg Review Score", f"{avg_review:.2f} ⭐",         "⭐"),
+    (k6, "Unique Customers", f"{total_customers:,}",        "👥"),
 ]
-df_m = pd.DataFrame(MODELS)
+for col, label, value, icon in metrics:
+    col.metric(label=f"{icon} {label}", value=value)
 
-col_chart, col_gauge = st.columns([3, 2])
+st.markdown("<div class='gradient-divider'></div>", unsafe_allow_html=True)
 
-with col_chart:
-    dom_colors = {"Customer":"#7C3AED","Seller":"#06B6D4","Order":"#F59E0B"}
-    fig = bar(df_m, "Model", "Score", "Model Performance Scores by Domain",
-              color_col="Domain", cmap=dom_colors)
-    fig.update_layout(height=320)
-    # Add a reference line at 0.70
-    fig.add_hline(y=0.70, line_dash="dot", line_color="#52525B", line_width=1.2,
-                  annotation_text="AUC 0.70 target",
-                  annotation_font_color="#52525B", annotation_font_size=11)
-    st.plotly_chart(fig, use_container_width=True)
+# ── Row 1: Orders over time + Revenue by state ────────────────────────────────
+col_left, col_right = st.columns([2, 1])
 
-with col_gauge:
-    auc_scores = [0.6829, 0.7846, 0.7483]
-    avg_auc = sum(auc_scores) / len(auc_scores) * 100
-    fig_g = gauge(round(avg_auc, 1), "Avg Classifier AUC",
-                  lo=60, hi=75, c_lo="#F43F5E", c_mid="#F59E0B", c_hi="#10B981")
-    st.plotly_chart(fig_g, use_container_width=True)
+with col_left:
+    st.markdown("<div class='section-title'>📅 Orders Over Time</div>", unsafe_allow_html=True)
+    monthly = (
+        delivered
+        .groupby(["purchase_year", "purchase_month"])
+        .agg(orders=("order_id", "count"), revenue=("total_order_value", "sum"))
+        .reset_index()
+    )
+    monthly["period"] = pd.to_datetime(
+        monthly["purchase_year"].astype(str) + "-" + monthly["purchase_month"].astype(str).str.zfill(2)
+    )
+    monthly = monthly.sort_values("period")
 
-st.dataframe(df_m, use_container_width=True, hide_index=True)
+    fig_time = go.Figure()
+    fig_time.add_trace(go.Scatter(
+        x=monthly["period"], y=monthly["orders"],
+        mode="lines+markers", name="Orders",
+        line=dict(color="#8b5cf6", width=2.5),
+        marker=dict(size=5),
+        fill="tozeroy",
+        fillcolor="rgba(139,92,246,0.08)",
+    ))
+    fig_time.add_trace(go.Scatter(
+        x=monthly["period"], y=monthly["revenue"] / 1000,
+        mode="lines", name="Revenue (R$K)",
+        line=dict(color="#14b8a6", width=2, dash="dot"),
+        yaxis="y2"
+    ))
+    fig_time.update_layout(
+        template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        height=320, margin=dict(l=0, r=10, t=10, b=0),
+        legend=dict(orientation="h", y=-0.15),
+        xaxis=dict(gridcolor="rgba(255,255,255,0.05)"),
+        yaxis=dict(gridcolor="rgba(255,255,255,0.05)", title="Orders"),
+        yaxis2=dict(title="Revenue (R$K)", overlaying="y", side="right", gridcolor="rgba(0,0,0,0)"),
+        font=dict(family="Inter", color="#94a3b8"),
+    )
+    st.plotly_chart(fig_time, use_container_width=True)
 
-st.markdown("---")
+with col_right:
+    st.markdown("<div class='section-title'>🗺️ Revenue by State</div>", unsafe_allow_html=True)
+    state_rev = (
+        delivered.groupby("customer_state")["total_order_value"]
+        .sum().reset_index()
+        .sort_values("total_order_value", ascending=True).tail(12)
+    )
+    fig_state = px.bar(
+        state_rev, x="total_order_value", y="customer_state",
+        orientation="h",
+        color="total_order_value",
+        color_continuous_scale=["#1e1b4b", "#8b5cf6", "#14b8a6"],
+        labels={"total_order_value": "Revenue (R$)", "customer_state": "State"},
+    )
+    fig_state.update_layout(
+        template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        height=320, margin=dict(l=0, r=0, t=10, b=0),
+        coloraxis_showscale=False,
+        font=dict(family="Inter", color="#94a3b8"),
+        xaxis=dict(gridcolor="rgba(255,255,255,0.05)"),
+    )
+    st.plotly_chart(fig_state, use_container_width=True)
 
-# ─── Navigation Cards ────────────────────────────────────────────
-st.markdown("## 🗺️ Dashboards")
+st.markdown("<div class='gradient-divider'></div>", unsafe_allow_html=True)
 
-CARDS = [
-    ("👥", "Customer Intelligence",
-     "Explore RFM behavioral segments across 96k customers, rank churn risk by probability tier, and predict lifetime value with XGBoost.",
-     ["RFM Segments", "Churn Risk", "CLV"]),
-    ("🏪", "Seller Intelligence",
-     "Composite performance scoring across 3,096 sellers with KMeans clustering. Identify the 24 top performers and predict dropout probability.",
-     ["Performance", "Churn Risk"]),
-    ("📦", "Order Intelligence",
-     "Pre-dispatch delivery delay detection and post-delivery review score forecasting across 99k orders.",
-     ["Delivery Risk", "Review Prediction"]),
-]
+# ── Row 2: Review Distribution + Payment types + Top categories ───────────────
+col_a, col_b, col_c = st.columns(3)
 
-cols = st.columns(3)
-for col, (icon, title, desc, chips) in zip(cols, CARDS):
-    chip_html = "".join(f'<span class="oc-chip">{c}</span>' for c in chips)
-    with col:
-        st.markdown(
-            f"""
-            <div class="olist-card">
-              <span class="oc-icon">{icon}</span>
-              <div class="oc-title">{title}</div>
-              <div class="oc-desc">{desc}</div>
-              <div class="oc-chips">{chip_html}</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+with col_a:
+    st.markdown("<div class='section-title'>⭐ Review Score Distribution</div>", unsafe_allow_html=True)
+    review_dist = delivered["review_score"].value_counts().sort_index().reset_index()
+    review_dist.columns = ["score", "count"]
+    colors = ["#f43f5e", "#f59e0b", "#facc15", "#14b8a6", "#22c55e"]
+    fig_rev = px.bar(review_dist, x="score", y="count",
+                     color="score", color_continuous_scale=colors,
+                     labels={"score": "Stars", "count": "Orders"})
+    fig_rev.update_layout(
+        template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        height=280, margin=dict(l=0, r=0, t=10, b=0), showlegend=False,
+        coloraxis_showscale=False,
+        font=dict(family="Inter", color="#94a3b8"),
+        xaxis=dict(gridcolor="rgba(255,255,255,0.05)", tickmode="linear"),
+        yaxis=dict(gridcolor="rgba(255,255,255,0.05)"),
+    )
+    st.plotly_chart(fig_rev, use_container_width=True)
 
-st.markdown("")
-st.caption(
-    "Medallion Architecture: Bronze → Silver → Gold → ML  ·  "
-    "7 predictive models  ·  3 One-Big-Tables  ·  ~300k scored records"
-)
+with col_b:
+    st.markdown("<div class='section-title'>💳 Payment Method Mix</div>", unsafe_allow_html=True)
+    pay_dist = delivered["payment_type"].value_counts().reset_index()
+    pay_dist.columns = ["type", "count"]
+    fig_pay = px.pie(pay_dist, names="type", values="count",
+                     color_discrete_sequence=["#8b5cf6", "#14b8a6", "#f59e0b", "#f43f5e", "#22c55e"],
+                     hole=0.55)
+    fig_pay.update_traces(textfont_size=11, textinfo="label+percent")
+    fig_pay.update_layout(
+        template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)",
+        height=280, margin=dict(l=0, r=0, t=10, b=10),
+        showlegend=False, font=dict(family="Inter", color="#94a3b8"),
+    )
+    st.plotly_chart(fig_pay, use_container_width=True)
 
-last_updated(s["scored_at"])
+with col_c:
+    st.markdown("<div class='section-title'>📦 Top Product Categories</div>", unsafe_allow_html=True)
+    top_cats = (
+        delivered.groupby("product_category_name")["total_order_value"]
+        .sum().reset_index()
+        .sort_values("total_order_value", ascending=False).head(10)
+    )
+    fig_cats = px.bar(
+        top_cats, x="total_order_value", y="product_category_name",
+        orientation="h",
+        color_discrete_sequence=["#8b5cf6"],
+        labels={"total_order_value": "Revenue (R$)", "product_category_name": ""},
+    )
+    fig_cats.update_layout(
+        template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        height=280, margin=dict(l=0, r=0, t=10, b=0),
+        yaxis=dict(autorange="reversed"),
+        font=dict(family="Inter", color="#94a3b8"),
+        xaxis=dict(gridcolor="rgba(255,255,255,0.05)"),
+    )
+    st.plotly_chart(fig_cats, use_container_width=True)
+
+# ── Footer ────────────────────────────────────────────────────────────────────
+st.markdown("""
+<div style='text-align:center; color:#475569; font-size:0.75rem; margin-top:2rem; padding:1rem;
+            border-top:1px solid rgba(255,255,255,0.06);'>
+  Olist Analytics Platform · Built with Python, SQL Server & Streamlit · 2016–2018 Dataset
+</div>
+""", unsafe_allow_html=True)

@@ -1,245 +1,245 @@
+"""
+pages/1_Customer_Intelligence.py
+─────────────────────────────────
+Customer segmentation, churn risk, and lifetime value analysis
+powered by K-Means RFM and Random Forest ML outputs.
+"""
+
+import os, sys
 import streamlit as st
 import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
 
-st.set_page_config(page_title="Customer Intelligence", page_icon="👥", layout="wide")
+st.set_page_config(
+    page_title="Customer Intelligence — Olist Analytics",
+    page_icon="👥",
+    layout="wide",
+)
 
-from components.filters import load_css, sidebar_header, multiselect, range_slider, sidebar_divider, reset_btn, last_updated
-from components.db import get_rfm, get_churn, get_clv
-from components.charts import bar, funnel, scatter, hist, box, treemap, SEG_COLORS, RISK_COLORS, CLV_COLORS
+css_path = os.path.join(os.path.dirname(__file__), "..", "assets", "style.css")
+with open(css_path) as f:
+    st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
-load_css()
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from components.db import load_obt, demo_banner
 
-with st.spinner("Loading customer data…"):
-    df_rfm   = get_rfm()
-    df_churn = get_churn()
-    df_clv   = get_clv()
+df_raw, is_demo = load_obt()
+if is_demo:
+    demo_banner()
 
-if df_rfm.empty or df_churn.empty or df_clv.empty:
-    st.error("Failed to load customer data."); st.stop()
+# ── Sidebar brand + filters ───────────────────────────────────────────────────
+st.sidebar.markdown("""
+<div style='text-align:center; padding: 1rem 0 1.5rem;'>
+  <div style='font-size:2rem;'>🏭</div>
+  <div style='font-family:"Space Grotesk",sans-serif; font-size:1.1rem; font-weight:700;
+              background:linear-gradient(135deg,#8b5cf6,#14b8a6);
+              -webkit-background-clip:text; -webkit-text-fill-color:transparent;'>
+    Olist Analytics
+  </div>
+</div>
+""", unsafe_allow_html=True)
 
-ts = df_rfm["scored_at"].iloc[0] if "scored_at" in df_rfm.columns else "Unknown"
+st.sidebar.markdown("## 🔍 Filters")
+years = sorted(df_raw["purchase_year"].dropna().unique().astype(int).tolist())
+sel_years = st.sidebar.multiselect("Purchase Year", years, default=years)
+df = df_raw[
+    df_raw["purchase_year"].isin(sel_years) &
+    (df_raw["order_status"] == "delivered")
+].copy() if sel_years else df_raw[df_raw["order_status"] == "delivered"].copy()
 
-sidebar_header("Customer Intelligence")
-st.title("Customer Intelligence")
+# Customer-level aggregation (one row per customer using latest order data)
+cust = (
+    df.sort_values("purchase_date", ascending=False)
+    .drop_duplicates(subset="customer_unique_id", keep="first")
+)
 
-tab1, tab2, tab3 = st.tabs(["🗂️  RFM Segments", "⚠️  Churn Prediction", "💰  Lifetime Value"])
+# ── Page header ───────────────────────────────────────────────────────────────
+st.markdown("""
+<div class='page-header'>
+  <h1>👥 Customer Intelligence</h1>
+  <p>RFM segmentation (K-Means), churn risk (Random Forest), and customer value insights.</p>
+</div>
+""", unsafe_allow_html=True)
 
+# ── KPIs ──────────────────────────────────────────────────────────────────────
+total_cust  = cust["customer_unique_id"].nunique()
+avg_recency = cust["recency_days"].mean() if "recency_days" in cust else 0
+avg_freq    = cust["frequency_orders"].mean() if "frequency_orders" in cust else 0
+avg_mon     = cust["monetary_total"].mean() if "monetary_total" in cust else df["total_order_value"].mean()
+high_churn  = (cust["churn_risk_tier"] == "High").sum() if "churn_risk_tier" in cust.columns else 0
+churn_pct   = high_churn / total_cust * 100 if total_cust else 0
 
-# ════════════════════════════════════════════════════════════════════
-#  TAB 1 — RFM SEGMENTATION
-# ════════════════════════════════════════════════════════════════════
-with tab1:
-    sidebar_divider("RFM Filters")
-    all_segs = sorted(df_rfm["segment_label"].dropna().unique())
-    sel_segs = multiselect("Segments", all_segs)
-    rfm_min  = int(df_rfm["rfm_total_score"].min())
-    rfm_max  = int(df_rfm["rfm_total_score"].max())
-    sel_rfm  = range_slider("RFM Total Score", rfm_min, rfm_max)
+k1, k2, k3, k4, k5 = st.columns(5)
+k1.metric("👥 Unique Customers",   f"{total_cust:,}")
+k2.metric("📅 Avg Recency",        f"{avg_recency:.0f} days" if avg_recency else "N/A")
+k3.metric("🔁 Avg Orders/Customer",f"{avg_freq:.2f}" if avg_freq else "N/A")
+k4.metric("💰 Avg Lifetime Value", f"R${avg_mon:.0f}")
+k5.metric("⚠️ High Churn Risk",    f"{high_churn:,} ({churn_pct:.1f}%)")
 
-    filt = df_rfm[
-        df_rfm["segment_label"].isin(sel_segs) &
-        df_rfm["rfm_total_score"].between(sel_rfm[0], sel_rfm[1])
-    ]
-    n = len(filt)
+st.markdown("<div class='gradient-divider'></div>", unsafe_allow_html=True)
 
-    champs = (filt["segment_label"] == "Champions").sum()
-    loyal  = (filt["segment_label"] == "Loyal Customers").sum()
-    risk   = (filt["segment_label"] == "At Risk").sum()
-    lost   = (filt["segment_label"] == "Lost/Inactive").sum()
-    avg_rfm = filt["rfm_total_score"].mean() if n else 0
+# ── Row 1: Segment pie + Churn tier bar ──────────────────────────────────────
+col1, col2 = st.columns(2)
 
-    c1, c2, c3, c4, c5 = st.columns(5)
-    c1.metric("Total Customers",  f"{n:,}")
-    c2.metric("🏆 Champions",     f"{champs:,}", f"{champs/n*100:.1f}%" if n else None)
-    c3.metric("💙 Loyal",         f"{loyal:,}",  f"{loyal/n*100:.1f}%" if n else None)
-    c4.metric("🟡 At Risk",       f"{risk:,}",   f"{risk/n*100:.1f}%" if n else None)
-    c5.metric("⚫ Lost/Inactive", f"{lost:,}",   f"{lost/n*100:.1f}%" if n else None)
-
-    st.markdown("")
-
-    # Row 1: Treemap  |  R/F/M grouped bar
-    r1a, r1b = st.columns(2)
-    with r1a:
-        seg_c = filt["segment_label"].value_counts().reset_index()
-        seg_c.columns = ["segment_label", "count"]
-        st.plotly_chart(treemap(seg_c, "segment_label", "count",
-                                "Segment Distribution", cmap=SEG_COLORS),
-                        use_container_width=True)
-    with r1b:
-        avg_rfm_df = (
-            filt.groupby("segment_label")[
-                ["rfm_recency_score","rfm_frequency_score","rfm_monetary_score"]
-            ].mean().reset_index()
-            .melt(id_vars="segment_label", var_name="Metric", value_name="Avg Score")
+with col1:
+    st.markdown("<div class='section-title'>🎯 RFM Customer Segments (K-Means)</div>", unsafe_allow_html=True)
+    if "customer_segment" in cust.columns and cust["customer_segment"].notna().any():
+        seg = cust["customer_segment"].value_counts().reset_index()
+        seg.columns = ["segment", "count"]
+        seg_colors = {
+            "Champions":    "#22c55e",
+            "Loyal":        "#14b8a6",
+            "At Risk":      "#f59e0b",
+            "Lost/Inactive":"#f43f5e",
+        }
+        colors = [seg_colors.get(s, "#8b5cf6") for s in seg["segment"]]
+        fig_seg = px.pie(
+            seg, names="segment", values="count",
+            color="segment",
+            color_discrete_map=seg_colors,
+            hole=0.52,
         )
-        avg_rfm_df["Metric"] = avg_rfm_df["Metric"].map({
-            "rfm_recency_score":   "Recency",
-            "rfm_frequency_score": "Frequency",
-            "rfm_monetary_score":  "Monetary",
-        })
-        rfm_colors = {"Recency":"#06B6D4","Frequency":"#A78BFA","Monetary":"#10B981"}
-        st.plotly_chart(
-            bar(avg_rfm_df, "segment_label", "Avg Score",
-                "Avg R / F / M Score by Segment",
-                color_col="Metric", cmap=rfm_colors),
-            use_container_width=True)
+        fig_seg.update_traces(textinfo="label+percent", textfont_size=11)
+        fig_seg.update_layout(
+            template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)",
+            height=330, margin=dict(l=0, r=0, t=10, b=10),
+            legend=dict(orientation="h", y=-0.12),
+            font=dict(family="Inter", color="#94a3b8"),
+        )
+        st.plotly_chart(fig_seg, use_container_width=True)
 
-    # Row 2: Recency vs Monetary scatter  |  State breakdown
-    r2a, r2b = st.columns([3,2])
-    with r2a:
-        st.plotly_chart(
-            scatter(filt, "rfm_recency_score", "rfm_monetary_score",
-                    "segment_label", "Recency vs Monetary (5k sample)",
-                    cmap=SEG_COLORS, n=5000),
-            use_container_width=True)
-    with r2b:
-        if "customer_state" in filt.columns:
-            state_grp = (filt.groupby(["customer_state","segment_label"])
-                         .size().reset_index(name="count"))
-            top8 = state_grp.groupby("customer_state")["count"].sum().nlargest(8).index
-            state_grp = state_grp[state_grp["customer_state"].isin(top8)]
-            fig = bar(state_grp, "customer_state", "count",
-                      "Top 8 States by Segment",
-                      color_col="segment_label", cmap=SEG_COLORS, barmode="stack")
-            fig.update_layout(height=360)
-            st.plotly_chart(fig, use_container_width=True)
+        # Segment stats table
+        seg_stats = (
+            df[df["customer_segment"].notna()]
+            .groupby("customer_segment")
+            .agg(
+                customers=("customer_unique_id", "nunique"),
+                avg_order_value=("total_order_value", "mean"),
+                avg_review=("review_score", "mean"),
+            )
+            .reset_index()
+            .sort_values("avg_order_value", ascending=False)
+        )
+        seg_stats["avg_order_value"] = seg_stats["avg_order_value"].map("R${:.0f}".format)
+        seg_stats["avg_review"] = seg_stats["avg_review"].map("{:.2f} ⭐".format)
+        st.dataframe(
+            seg_stats.rename(columns={
+                "customer_segment": "Segment",
+                "customers": "Customers",
+                "avg_order_value": "Avg Order Value",
+                "avg_review": "Avg Review",
+            }),
+            use_container_width=True, hide_index=True,
+        )
+    else:
+        st.info("Run `ml_customer_segments.py --execute` to populate segment data.")
 
-    # Data table
-    st.subheader("Segment Data")
-    show = [c for c in ["customer_unique_id","segment_label","rfm_recency_score",
-                         "rfm_frequency_score","rfm_monetary_score","rfm_total_score",
-                         "total_spend","days_since_last_order","customer_state"]
-            if c in filt.columns]
-    st.dataframe(filt[show], use_container_width=True, hide_index=True)
-    st.download_button("📥 Export CSV", filt.to_csv(index=False),
-                       "customer_segments.csv", "text/csv")
+with col2:
+    st.markdown("<div class='section-title'>⚠️ Churn Risk Distribution (Random Forest)</div>", unsafe_allow_html=True)
+    if "churn_risk_tier" in cust.columns and cust["churn_risk_tier"].notna().any():
+        churn = cust["churn_risk_tier"].value_counts().reset_index()
+        churn.columns = ["tier", "count"]
+        tier_order = ["Low", "Medium", "High"]
+        churn["tier"] = pd.Categorical(churn["tier"], categories=tier_order, ordered=True)
+        churn = churn.sort_values("tier")
+        tier_colors = {"Low": "#22c55e", "Medium": "#f59e0b", "High": "#f43f5e"}
+        fig_churn = px.bar(
+            churn, x="tier", y="count",
+            color="tier", color_discrete_map=tier_colors,
+            labels={"tier": "Risk Tier", "count": "Customers"},
+            text="count",
+        )
+        fig_churn.update_traces(texttemplate="%{text:,}", textposition="outside")
+        fig_churn.update_layout(
+            template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+            height=280, margin=dict(l=0, r=0, t=10, b=0), showlegend=False,
+            font=dict(family="Inter", color="#94a3b8"),
+            xaxis=dict(gridcolor="rgba(255,255,255,0.05)"),
+            yaxis=dict(gridcolor="rgba(255,255,255,0.05)"),
+        )
+        st.plotly_chart(fig_churn, use_container_width=True)
 
+        # Churn probability histogram
+        if "churn_probability" in cust.columns:
+            fig_prob = px.histogram(
+                cust.dropna(subset=["churn_probability"]),
+                x="churn_probability", nbins=40,
+                color_discrete_sequence=["#8b5cf6"],
+                labels={"churn_probability": "Churn Probability", "count": "Customers"},
+                title="",
+            )
+            fig_prob.update_layout(
+                template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                height=220, margin=dict(l=0, r=0, t=10, b=0),
+                font=dict(family="Inter", color="#94a3b8"),
+                xaxis=dict(gridcolor="rgba(255,255,255,0.05)"),
+                yaxis=dict(gridcolor="rgba(255,255,255,0.05)"),
+            )
+            st.plotly_chart(fig_prob, use_container_width=True)
+    else:
+        st.info("Run `ml_churn_prediction.py --execute` to populate churn data.")
 
-# ════════════════════════════════════════════════════════════════════
-#  TAB 2 — CHURN PREDICTION
-# ════════════════════════════════════════════════════════════════════
-with tab2:
-    st.info(
-        "**Dataset context**: Churn = no purchase in the last 120 days (anchored to the 2018 "
-        "dataset max date). Because Olist customers are overwhelmingly one-time buyers, an "
-        "overall predicted churn rate of ~80% is **accurate and expected** — not a model "
-        "defect. The model's value lies in *ranking* customers by churn probability.",
-        icon="ℹ️",
+st.markdown("<div class='gradient-divider'></div>", unsafe_allow_html=True)
+
+# ── Row 2: RFM heatmap + State map ───────────────────────────────────────────
+col3, col4 = st.columns([3, 2])
+
+with col3:
+    st.markdown("<div class='section-title'>📊 Revenue by Segment & State (Top 8)</div>", unsafe_allow_html=True)
+    if "customer_segment" in df.columns and df["customer_segment"].notna().any():
+        top_states = df["customer_state"].value_counts().head(8).index.tolist()
+        pivot = (
+            df[df["customer_state"].isin(top_states)]
+            .groupby(["customer_state", "customer_segment"])["total_order_value"]
+            .sum()
+            .reset_index()
+        )
+        fig_heat = px.bar(
+            pivot,
+            x="customer_state", y="total_order_value",
+            color="customer_segment",
+            barmode="stack",
+            color_discrete_map={
+                "Champions":    "#22c55e",
+                "Loyal":        "#14b8a6",
+                "At Risk":      "#f59e0b",
+                "Lost/Inactive":"#f43f5e",
+            },
+            labels={"total_order_value": "Revenue (R$)", "customer_state": "State",
+                    "customer_segment": "Segment"},
+        )
+        fig_heat.update_layout(
+            template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+            height=320, margin=dict(l=0, r=0, t=10, b=0),
+            legend=dict(orientation="h", y=-0.2),
+            font=dict(family="Inter", color="#94a3b8"),
+            yaxis=dict(gridcolor="rgba(255,255,255,0.05)"),
+        )
+        st.plotly_chart(fig_heat, use_container_width=True)
+    else:
+        st.info("Segment data not available yet.")
+
+with col4:
+    st.markdown("<div class='section-title'>📅 Customer Acquisition Trend</div>", unsafe_allow_html=True)
+    first_orders = (
+        df.groupby("customer_unique_id")["purchase_date"]
+        .min().reset_index()
     )
+    first_orders["month"] = first_orders["purchase_date"].dt.to_period("M").astype(str)
+    monthly_new = first_orders.groupby("month").size().reset_index(name="new_customers")
+    monthly_new = monthly_new[monthly_new["month"] >= "2017-01"]  # filter noise
 
-    sidebar_divider("Churn Filters")
-    all_tiers = sorted(df_churn["risk_tier"].dropna().unique())
-    sel_tiers = multiselect("Risk Tiers", all_tiers)
-    sel_prob  = range_slider("Churn Probability", 0.0, 1.0, step=0.01)
-
-    fc = df_churn[
-        df_churn["risk_tier"].isin(sel_tiers) &
-        df_churn["churn_probability"].between(sel_prob[0], sel_prob[1])
-    ]
-    nc = len(fc)
-
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("🔴 High Risk",   f"{(fc['risk_tier']=='High').sum():,}")
-    c2.metric("🟡 Medium Risk", f"{(fc['risk_tier']=='Medium').sum():,}")
-    c3.metric("🟢 Low Risk",    f"{(fc['risk_tier']=='Low').sum():,}")
-    c4.metric("Predicted Churn Rate",
-              f"{fc['churn_predicted'].mean()*100:.1f}%" if nc else "—")
-
-    st.markdown("")
-
-    r1a, r1b = st.columns(2)
-    with r1a:
-        tc = fc["risk_tier"].value_counts().reset_index()
-        tc.columns = ["risk_tier","count"]
-        st.plotly_chart(funnel(tc,"risk_tier","count",
-                               "Customers by Risk Tier", cmap=RISK_COLORS),
-                        use_container_width=True)
-    with r1b:
-        st.plotly_chart(hist(fc,"churn_probability",
-                             "Churn Probability Distribution",bins=50),
-                        use_container_width=True)
-
-    r2a, r2b = st.columns(2)
-    with r2a:
-        st.plotly_chart(box(fc,"risk_tier","churn_probability",
-                            "Probability by Risk Tier", cmap=RISK_COLORS),
-                        use_container_width=True)
-    with r2b:
-        if "total_spend" in fc.columns:
-            st.plotly_chart(
-                scatter(fc,"total_spend","churn_probability","risk_tier",
-                        "Total Spend vs Churn Probability (5k sample)",
-                        cmap=RISK_COLORS, n=5000),
-                use_container_width=True)
-
-    st.subheader("Churn Data")
-    show = [c for c in ["customer_unique_id","churn_probability","churn_predicted",
-                         "risk_tier","total_spend","total_orders","customer_state"]
-            if c in fc.columns]
-    st.dataframe(fc[show], use_container_width=True, hide_index=True)
-    st.download_button("📥 Export CSV", fc.to_csv(index=False),
-                       "churn_predictions.csv","text/csv")
-
-
-# ════════════════════════════════════════════════════════════════════
-#  TAB 3 — CUSTOMER LIFETIME VALUE
-# ════════════════════════════════════════════════════════════════════
-with tab3:
-    sidebar_divider("CLV Filters")
-    all_clv = sorted(df_clv["clv_tier"].dropna().unique())
-    sel_clv = multiselect("CLV Tiers", all_clv)
-
-    fv = df_clv[df_clv["clv_tier"].isin(sel_clv)]
-    nv = len(fv)
-
-    plat    = (fv["clv_tier"]=="Platinum").sum()
-    avg_clv = fv["predicted_clv"].mean() if nv else 0
-    max_clv = fv["predicted_clv"].max()  if nv else 0
-    tot_clv = fv["predicted_clv"].sum()  if nv else 0
-
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("💎 Platinum",       f"{plat:,}")
-    c2.metric("Avg Predicted CLV", f"R$ {avg_clv:,.0f}")
-    c3.metric("Highest CLV",       f"R$ {max_clv:,.0f}")
-    c4.metric("Total Portfolio",   f"R$ {tot_clv:,.0f}")
-
-    st.markdown("")
-
-    r1a, r1b = st.columns(2)
-    with r1a:
-        clv_c = fv["clv_tier"].value_counts().reset_index()
-        clv_c.columns = ["clv_tier","count"]
-        st.plotly_chart(funnel(clv_c,"clv_tier","count",
-                               "Customers by CLV Tier", cmap=CLV_COLORS),
-                        use_container_width=True)
-    with r1b:
-        st.plotly_chart(box(fv,"clv_tier","predicted_clv",
-                            "CLV Distribution per Tier", cmap=CLV_COLORS),
-                        use_container_width=True)
-
-    r2a, r2b = st.columns(2)
-    with r2a:
-        if "total_orders" in fv.columns:
-            st.plotly_chart(
-                scatter(fv,"total_orders","predicted_clv","clv_tier",
-                        "Orders vs Predicted CLV (5k sample)",
-                        cmap=CLV_COLORS, n=5000),
-                use_container_width=True)
-    with r2b:
-        avg_t = fv.groupby("clv_tier")["predicted_clv"].mean().reset_index()
-        st.plotly_chart(
-            bar(avg_t,"clv_tier","predicted_clv",
-                "Avg Predicted CLV by Tier", cmap=CLV_COLORS),
-            use_container_width=True)
-
-    st.subheader("CLV Data")
-    show = [c for c in ["customer_unique_id","predicted_clv","clv_tier",
-                         "total_spend","total_orders","customer_tenure_days"]
-            if c in fv.columns]
-    st.dataframe(fv[show], use_container_width=True, hide_index=True)
-    st.download_button("📥 Export CSV", fv.to_csv(index=False),
-                       "clv_predictions.csv","text/csv")
-
-
-reset_btn()
-last_updated(ts)
+    fig_acq = px.area(
+        monthly_new, x="month", y="new_customers",
+        color_discrete_sequence=["#14b8a6"],
+        labels={"month": "", "new_customers": "New Customers"},
+    )
+    fig_acq.update_layout(
+        template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        height=320, margin=dict(l=0, r=0, t=10, b=0),
+        font=dict(family="Inter", color="#94a3b8"),
+        xaxis=dict(gridcolor="rgba(255,255,255,0.05)", tickangle=45),
+        yaxis=dict(gridcolor="rgba(255,255,255,0.05)"),
+    )
+    st.plotly_chart(fig_acq, use_container_width=True)
