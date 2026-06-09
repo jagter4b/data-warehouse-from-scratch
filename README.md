@@ -134,7 +134,7 @@ To prevent malicious queries (like SQL Injection or prompt-hacking attempts to d
 3. **Keyword Blocklist Scanner**: The query is scanned using regex word-boundary matching for blocked keywords (e.g. `DROP`, `DELETE`, `TRUNCATE`, `ALTER`, `EXEC`, `SHUTDOWN`).
 4. **Least-Privilege Database Connection**: In production, connect using a database login with read-only (`db_datareader`) access to SQL Server.
 
-<video src="https://github.com/jagter4b/data-warehouse-from-scratch/raw/main/docs/SQL_assistant.mp4" width="100%" controls></video>
+![SQL Assistant Demo](./docs/SQL_assistant.gif)
 
 ---
 
