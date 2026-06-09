@@ -1,0 +1,403 @@
+/* ═══════════════════════════════════════════════════════════════
+   styles.css — SQL Assistant Corporate Dark Theme
+   A highly polished, enterprise-ready BI dashboard interface.
+   Minimal developer noise, crisp typography, clean vector icons.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Google Fonts ── */
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* ── Design System Variables ───────────────────────────────────── */
+:root {
+    --bg-base:       #080b11;
+    --bg-surface:    #0e1322;
+    --bg-card:       #131a30;
+    --bg-glass:      rgba(19, 26, 48, 0.7);
+    --border:        rgba(255, 255, 255, 0.05);
+    --border-glow:   rgba(14, 165, 233, 0.3);
+    --accent-purple: #6366f1; /* Professional Indigo */
+    --accent-cyan:   #0ea5e9; /* Professional Cyan */
+    --accent-green:  #10b981; /* Emerald Success */
+    --accent-rose:   #ef4444; /* Corporate Red */
+    --text-primary:  #f8fafc;
+    --text-secondary:#94a3b8;
+    --text-muted:    #475569;
+    --radius:        10px;
+    --radius-lg:     16px;
+    --shadow:        0 8px 32px rgba(0, 0, 0, 0.4);
+    --shadow-glow:   0 0 25px rgba(14, 165, 233, 0.1);
+    --font-arabic:   'Cairo', sans-serif;
+    --font-main:     'Inter', 'Cairo', sans-serif;
+    --font-display:  'Space Grotesk', 'Cairo', sans-serif;
+    --font-mono:     'JetBrains Mono', monospace;
+}
+
+/* ── Base App Reset ────────────────────────────────────────────── */
+.stApp {
+    background: var(--bg-base) !important;
+    font-family: var(--font-main) !important;
+    color: var(--text-primary) !important;
+}
+
+/* Constrain main block width for a neat search-engine style dashboard */
+.block-container {
+    max-width: 1000px !important;
+    padding-top: 3rem !important;
+    padding-bottom: 3rem !important;
+    margin: 0 auto !important;
+}
+
+/* ── Bilingual & Auto RTL/LTR Support ─────────────────────────── */
+.bidi-text,
+[dir="auto"],
+.bidi-text p,
+.bidi-text li,
+.bidi-text h1,
+.bidi-text h2,
+.bidi-text h3,
+.bidi-text h4,
+.bidi-text h5,
+.bidi-text h6,
+.stMarkdown p,
+.stMarkdown li,
+.stMarkdown h1,
+.stMarkdown h2,
+.stMarkdown h3,
+.stMarkdown h4,
+.stMarkdown h5,
+.stMarkdown h6,
+.stMarkdown p span,
+.stMarkdown li span,
+.stMarkdown p code,
+.stMarkdown li code {
+    unicode-bidi: plaintext !important;
+    text-align: start !important;
+}
+
+/* Force English & code elements to remain strictly LTR */
+pre, code, .stCodeBlock, code span, .stCodeBlock div, .stCodeBlock span {
+    direction: ltr !important;
+    text-align: left !important;
+    unicode-bidi: normal !important;
+}
+
+:lang(ar),
+.arabic-font {
+    font-family: var(--font-arabic) !important;
+    line-height: 1.8 !important;
+}
+
+/* ── Premium Search Input Box ──────────────────────────────────── */
+div[data-testid="stTextInput"] {
+    margin-top: 1.5rem !important;
+    margin-bottom: 2rem !important;
+}
+
+div[data-testid="stTextInput"] > div > div > input {
+    background: var(--bg-glass) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 99px !important;
+    padding: 0.85rem 1.5rem 0.85rem 3.4rem !important; /* padding for search icon */
+    font-size: 1.15rem !important;
+    color: var(--text-primary) !important;
+    font-family: var(--font-arabic), var(--font-main) !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    box-shadow: var(--shadow) !important;
+    text-align: start !important;
+    unicode-bidi: plaintext !important;
+}
+
+div[data-testid="stTextInput"] > div > div > input:focus {
+    border-color: var(--accent-cyan) !important;
+    box-shadow: 0 0 25px rgba(14, 165, 233, 0.25), var(--shadow) !important;
+    background: rgba(19, 26, 48, 0.95) !important;
+}
+
+/* Mag glass vector icon via CSS pseudo-elements (No Emojis!) */
+div[data-testid="stTextInput"] > div > div {
+    position: relative;
+}
+
+div[data-testid="stTextInput"] > div > div::before {
+    content: "";
+    position: absolute;
+    left: 20px;
+    top: 50%;
+    width: 13px;
+    height: 13px;
+    border: 2px solid var(--text-secondary);
+    border-radius: 50%;
+    transform: translateY(-50%);
+    z-index: 10;
+    pointer-events: none;
+    transition: border-color 0.3s ease;
+}
+
+div[data-testid="stTextInput"] > div > div::after {
+    content: "";
+    position: absolute;
+    left: 31px;
+    top: calc(50% + 5px);
+    width: 6px;
+    height: 2px;
+    background: var(--text-secondary);
+    transform: rotate(45deg);
+    z-index: 10;
+    pointer-events: none;
+    transition: background 0.3s ease;
+}
+
+div[data-testid="stTextInput"] > div > div:focus-within::before {
+    border-color: var(--accent-cyan);
+}
+
+div[data-testid="stTextInput"] > div > div:focus-within::after {
+    background: var(--accent-cyan);
+}
+
+/* ── Corporate Page Header ──────────────────────────────────────── */
+.page-header {
+    text-align: center;
+    padding: 3rem 1rem 1rem;
+}
+.page-header h1 {
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 5vw, 3rem);
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--text-primary) 30%, var(--accent-cyan));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 0.4rem;
+}
+.page-header p {
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    max-width: 550px;
+    margin: 0 auto;
+    line-height: 1.6;
+}
+
+/* ── Glass Cards ────────────────────────────────────────────────── */
+.glass-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem 1.8rem;
+    margin-bottom: 1.5rem;
+    box-shadow: var(--shadow);
+    transition: border-color 0.3s, box-shadow 0.3s;
+}
+.glass-card:hover {
+    border-color: var(--border-glow);
+    box-shadow: var(--shadow-glow), var(--shadow);
+}
+
+/* ── Section Title ─────────────────────────────────────────────── */
+.section-title {
+    font-family: var(--font-display);
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin-bottom: 0.8rem;
+}
+
+/* ── Corporate Buttons ──────────────────────────────────────────── */
+.stButton > button {
+    background: rgba(255, 255, 255, 0.03) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius) !important;
+    color: var(--text-primary) !important;
+    font-family: var(--font-main) !important;
+    font-weight: 500 !important;
+    font-size: 0.85rem !important;
+    padding: 0.5rem 1.2rem !important;
+    transition: all 0.2s ease !important;
+}
+.stButton > button:hover {
+    background: var(--accent-cyan) !important;
+    border-color: var(--accent-cyan) !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 15px rgba(14, 165, 233, 0.3) !important;
+}
+
+/* ── Exports & Action buttons next to tables ────────────────────── */
+.stDownloadButton > button {
+    background: rgba(255, 255, 255, 0.02) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius) !important;
+    color: var(--text-secondary) !important;
+    font-size: 0.8rem !important;
+    transition: all 0.2s !important;
+}
+.stDownloadButton > button:hover {
+    border-color: var(--accent-green) !important;
+    color: var(--accent-green) !important;
+}
+
+/* ── Connection Status Bar ──────────────────────────────────────── */
+.conn-status-bar {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: rgba(255, 255, 255, 0.01);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.5rem 0.85rem;
+    font-size: 0.76rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.75rem;
+}
+
+/* ── Status badges with clean CSS dots ─────────────────────────── */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 99px;
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+.badge::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    display: inline-block;
+}
+.badge-connected {
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    color: var(--accent-green);
+}
+.badge-connected::before {
+    background: var(--accent-green);
+}
+.badge-disconnected {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    color: var(--accent-rose);
+}
+.badge-disconnected::before {
+    background: var(--accent-rose);
+}
+
+/* ── Inputs and Select Boxes ───────────────────────────────────── */
+.stSelectbox select,
+.stTextInput input,
+.stTextArea textarea {
+    background: var(--bg-card) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius) !important;
+    color: var(--text-primary) !important;
+}
+.stTextArea textarea:focus,
+.stTextInput input:focus {
+    border-color: var(--accent-cyan) !important;
+    box-shadow: 0 0 10px rgba(14, 165, 233, 0.15) !important;
+}
+
+/* ── Sidebar Styling ───────────────────────────────────────────── */
+[data-testid="stSidebar"] {
+    background: var(--bg-surface) !important;
+    border-right: 1px solid var(--border) !important;
+}
+[data-testid="stSidebar"] .stMarkdown {
+    font-size: 0.88rem;
+    color: var(--text-secondary) !important;
+}
+
+/* Brand logo in Sidebar */
+.brand-logo {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 0 1.5rem;
+}
+.brand-logo-icon {
+    width: 42px;
+    height: 42px;
+    background: linear-gradient(135deg, var(--accent-purple), var(--accent-cyan));
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+.brand-logo-text {
+    display: flex;
+    flex-direction: column;
+}
+.brand-name {
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.2;
+}
+.brand-tagline {
+    color: var(--text-secondary);
+    font-size: 0.7rem;
+    margin-top: 0.15rem;
+}
+
+/* ── Clean Metric (KPI) Cards ─────────────────────────────────── */
+[data-testid="stMetric"] {
+    background: var(--bg-card) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius) !important;
+    padding: 1.2rem !important;
+}
+[data-testid="stMetricValue"] {
+    font-family: var(--font-display) !important;
+    font-size: 1.75rem !important;
+    color: var(--text-primary) !important;
+    font-weight: 600 !important;
+}
+[data-testid="stMetricLabel"] {
+    color: var(--text-secondary) !important;
+    font-size: 0.78rem !important;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* ── Expanders ─────────────────────────────────────────────────── */
+[data-testid="stExpander"] {
+    background: var(--bg-surface) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius) !important;
+}
+
+/* ── DataFrames ────────────────────────────────────────────────── */
+[data-testid="stDataFrame"] {
+    border-radius: var(--radius) !important;
+    border: 1px solid var(--border) !important;
+    overflow: hidden;
+}
+
+/* ── Gradient Divider ──────────────────────────────────────────── */
+.gradient-divider {
+    height: 1px;
+    background: linear-gradient(90deg, var(--border), var(--accent-cyan) 50%, var(--border));
+    opacity: 0.2;
+    margin: 2rem 0;
+}
+
+/* ── Footer ────────────────────────────────────────────────────── */
+.app-footer {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.7rem;
+    padding: 2.5rem 1rem 1rem;
+    border-top: 1px solid var(--border);
+    margin-top: 3rem;
+}

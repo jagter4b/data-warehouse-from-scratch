@@ -123,7 +123,20 @@ A premium, custom-styled Streamlit application visually exploring the ML outputs
 
 ---
 
-## 🚀 8. How To Run This Project
+## 🤖 8. SQL Assistant (AI BI Agent)
+
+Located in the [`/sql_assistant`](./sql_assistant) directory, this is an AI-powered database assistant supporting both English and Arabic questions. It automatically discovers your database schema and uses Google Gemini models to convert natural-language business questions into T-SQL queries.
+
+### 🔒 Security & Guardrails
+To prevent malicious queries (like SQL Injection or prompt-hacking attempts to drop tables), a multi-layer safety system is built into [`sql_assistant/security.py`](./sql_assistant/security.py):
+1. **Query Whitelist (First Token Check)**: Every query must start exclusively with **`SELECT`** or **`WITH`**. Any query starting with destructive commands like `DROP`, `DELETE`, `TRUNCATE`, or `ALTER` is instantly blocked.
+2. **Semicolon Blocker**: Multiple SQL statements separated by semicolons (`;`) are rejected to prevent query-chaining attacks.
+3. **Keyword Blocklist Scanner**: The query is scanned using regex word-boundary matching for blocked keywords (e.g. `DROP`, `DELETE`, `TRUNCATE`, `ALTER`, `EXEC`, `SHUTDOWN`).
+4. **Least-Privilege Database Connection**: In production, connect using a database login with read-only (`db_datareader`) access to SQL Server.
+
+---
+
+## 🚀 9. How To Run This Project
 
 ### Prerequisites
 - Python 3.9+ and Git
@@ -177,9 +190,15 @@ pip install -r requirements.txt  # Streamlit-specific deps
 streamlit run app.py
 ```
 
+### 4. Launch SQL Assistant (AI BI Agent)
+```bash
+# Start the AI SQL Assistant in a separate port (e.g., localhost:8501)
+streamlit run sql_assistant/app.py
+```
+
 ---
 
-## 🧠 9. Key Design Decisions & Limitations
+## 🧠 10. Key Design Decisions & Limitations
 
 - **Idempotency:** Every script and SP is designed to be fully re-runnable (Drop/Create, Truncate/Insert, Merge).
 - **Demo Mode:** Avoids requiring VPNs or cloud DB hosting for the Streamlit app by falling back to static CSV exports.
@@ -188,7 +207,7 @@ streamlit run app.py
 
 ---
 
-## 📚 10. Documentation
+## 📚 11. Documentation
 
 Each pipeline layer contains an in-depth README covering logic and schemas:
 - 🥉 [Bronze Documentation](ingestion/README.md)
@@ -196,6 +215,7 @@ Each pipeline layer contains an in-depth README covering logic and schemas:
 - 🥇 [Gold Documentation](scripts/gold/README.md)
 - 🤖 [ML Documentation](scripts/ml/README.md)
 - 📈 [Streamlit Documentation](streamlit/README.md)
+- 💬 [SQL Assistant Documentation](sql_assistant/README.md)
 
 <div align="center">
 <br>
