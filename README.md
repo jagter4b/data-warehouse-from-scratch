@@ -134,6 +134,12 @@ To prevent malicious queries (like SQL Injection or prompt-hacking attempts to d
 3. **Keyword Blocklist Scanner**: The query is scanned using regex word-boundary matching for blocked keywords (e.g. `DROP`, `DELETE`, `TRUNCATE`, `ALTER`, `EXEC`, `SHUTDOWN`).
 4. **Least-Privilege Database Connection**: In production, connect using a database login with read-only (`db_datareader`) access to SQL Server.
 
+<div align="center">
+  <video src="./docs/SQL_assistant.mp4" width="100%" controls></video>
+  <br>
+  <em>Demo: SQL Assistant (AI BI Agent) translating mixed Arabic/English business questions and rendering Plotly visualizations.</em>
+</div>
+
 ---
 
 ## 🚀 9. How To Run This Project
