@@ -127,12 +127,6 @@ A premium, custom-styled Streamlit application visually exploring the ML outputs
 
 Located in the [`/sql_assistant`](./sql_assistant) directory, this is an AI-powered database assistant supporting both English and Arabic questions. It automatically discovers your database schema and uses Google Gemini models to convert natural-language business questions into T-SQL queries.
 
-<div align="center">
-  <video src="./docs/SQL_assistant.mp4" width="100%" controls></video>
-  <br>
-  <em>Demo: SQL Assistant (AI BI Agent) translating mixed Arabic/English business questions and rendering Plotly visualizations.</em>
-</div>
-
 ### 🔒 Security & Guardrails
 To prevent malicious queries (like SQL Injection or prompt-hacking attempts to drop tables), a multi-layer safety system is built into [`sql_assistant/security.py`](./sql_assistant/security.py):
 1. **Query Whitelist (First Token Check)**: Every query must start exclusively with **`SELECT`** or **`WITH`**. Any query starting with destructive commands like `DROP`, `DELETE`, `TRUNCATE`, or `ALTER` is instantly blocked.
