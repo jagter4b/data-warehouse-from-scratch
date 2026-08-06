@@ -31,7 +31,7 @@ This project demonstrates a production-ready data platform built entirely from s
 - **Dimensional Modeling:** Kimball Galaxy Schema with 7 dimensions, 5 fact tables, and 1 outrigger, completely enforcing foreign key constraints.
 - **Feature Stores:** 3 "One Big Tables" (OBTs) denormalizing the Gold layer into ML-ready datasets.
 - **Machine Learning:** 7 models (XGBoost, Random Forest, K-Means) covering segmentation, churn, LTV, performance scoring, delivery risk, and review prediction.
-- **Data Apps:** Live multi-page Streamlit dashboard with a robust cloud-ready "Demo Mode".
+- **Data Apps:** Live multi-page Streamlit dashboard + AI SQL Assistant (bilingual: English & Arabic).
 
 ---
 
@@ -45,14 +45,28 @@ The pipeline implements a strict **Medallion Architecture**, isolating raw inges
   <em>End-to-end ELT data pipeline showing ingestion, transformation, and dimensional modeling.</em>
 </div>
 
+```
+Data Sources → 🥉 Bronze → 🥈 Silver → 🥇 Gold → 🤖 ML → 📊 Dashboard
+```
+
+| Layer | Tool | Tables | Rows |
+|-------|------|--------|------|
+| 🥉 Bronze | Python + pyodbc | 11 raw tables | ~1.28M |
+| 🥈 Silver | T-SQL Stored Procedures | 9 clean tables | ~550K |
+| 🥇 Gold | T-SQL Stored Procedures | 7 dims + 5 facts | ~450K |
+| 🤖 ML | Python (XGBoost, sklearn) | 3 OBTs + predictions | ~99K |
+
 ---
 
 ## 🛠️ 3. Tech Stack
 
-- **Data Engineering:** Python, T-SQL, Microsoft SQL Server 2022, Neon PostgreSQL, Google Apps Script API.
-- **Data Modeling:** Kimball Galaxy Schema, Medallion Architecture, SCD Type 1, Accumulating Snapshot.
-- **Machine Learning:** XGBoost, Scikit-learn (Random Forest, K-Means), SMOTE (Imbalanced-learn).
-- **Analytics & UI:** Streamlit, Plotly Express, Custom CSS Design System.
+| Domain | Technologies |
+|--------|-------------|
+| **Data Engineering** | Python 3.9+, T-SQL, Microsoft SQL Server 2022, Neon PostgreSQL, Google Apps Script |
+| **Data Modeling** | Kimball Galaxy Schema, Medallion Architecture, SCD Type 1, Accumulating Snapshot |
+| **Machine Learning** | XGBoost, Scikit-learn (Random Forest, K-Means), SMOTE (Imbalanced-learn) |
+| **Analytics & UI** | Streamlit, Plotly Express, Custom CSS Design System |
+| **AI** | Google Gemini API (google-genai SDK) with model fallback chain |
 
 ---
 
@@ -170,32 +184,23 @@ EXEC gold.gold_master;
 ### 2. Run ML Pipeline
 ```bash
 # Create feature stores
-python scripts/ml/create_obt_customers.py --execute
-python scripts/ml/create_obt_sellers.py --execute
-python scripts/ml/create_obt_orders.py --execute
+python scripts/ml/create_obt_master.py --execute
 
 # Train models & score data
-python scripts/ml/ml_customer_segments.py --execute
-python scripts/ml/ml_churn_predictions.py --execute
-python scripts/ml/ml_clv_predictions.py --execute
-python scripts/ml/ml_seller_scores.py --execute
-python scripts/ml/ml_seller_churn.py --execute
-python scripts/ml/ml_delivery_risk.py --execute
-python scripts/ml/ml_review_predictions.py --execute
+python scripts/ml/run_all_ml.py --execute
 ```
 
 ### 3. Launch Dashboard
 ```bash
 python export_csv.py             # Re-export data snapshots for Streamlit Demo Mode
-cd streamlit
-pip install -r requirements.txt  # Streamlit-specific deps
-streamlit run app.py
+pip install -r streamlit/requirements.txt
+streamlit run streamlit/app.py
 ```
 
 ### 4. Launch SQL Assistant (AI BI Agent)
 ```bash
-# Start the AI SQL Assistant in a separate port (e.g., localhost:8501)
-streamlit run sql_assistant/app.py
+pip install -r sql_assistant/requirements.txt
+streamlit run sql_assistant/app.py --server.port 8502
 ```
 
 ---
@@ -212,12 +217,22 @@ streamlit run sql_assistant/app.py
 ## 📚 11. Documentation
 
 Each pipeline layer contains an in-depth README covering logic and schemas:
-- 🥉 [Bronze Documentation](ingestion/README.md)
-- 🥈 [Silver Documentation](scripts/silver/README.md)
-- 🥇 [Gold Documentation](scripts/gold/README.md)
-- 🤖 [ML Documentation](scripts/ml/README.md)
-- 📈 [Streamlit Documentation](streamlit/README.md)
-- 💬 [SQL Assistant Documentation](sql_assistant/README.md)
+
+| Document | Description |
+|----------|-------------|
+| [🏗️ Architecture](docs/ARCHITECTURE.md) | Full system architecture, data flow, layer-by-layer design |
+| [⚙️ Setup Guide](docs/SETUP.md) | Prerequisites, installation, SQL Server configuration |
+| [🔄 Pipeline Runbook](docs/PIPELINE_RUNBOOK.md) | Step-by-step guide to run the complete pipeline |
+| [🤖 ML Pipeline](docs/ML_PIPELINE.md) | All 7 models: features, algorithms, outputs, performance |
+| [💬 SQL Assistant](docs/SQL_ASSISTANT.md) | AI BI agent: architecture, security, module reference |
+| [📊 Dashboard](docs/DASHBOARD.md) | Streamlit pages, design system, deployment guide |
+| [📖 Data Dictionary](docs/DATA_DICTIONARY.md) | Every Gold layer table: columns, types, FKs |
+| [🥉 Bronze Docs](ingestion/README.md) | Ingestion pipeline details |
+| [🥈 Silver Docs](scripts/silver/README.md) | Transformation logic, table-by-table |
+| [🥇 Gold Docs](scripts/gold/README.md) | Dimensional model, ETL strategies |
+| [🤖 ML Docs](scripts/ml/README.md) | ML scripts, OBT structure |
+| [📈 Streamlit Docs](streamlit/README.md) | Dashboard quick start |
+| [💬 SQL Assistant Docs](sql_assistant/README.md) | Assistant quick start |
 
 <div align="center">
 <br>
